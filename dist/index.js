@@ -18,8 +18,8 @@
   var s3 = null;
   var data = null;
 
-  if(process.env.DEVELOPMENT){
-    data = require('./data/data.json');
+  if(!process.env.PORT){
+    data = require('../data/data.json');
     data.online = {};
     saveData(data, () => {
       startSocketIO();
@@ -42,7 +42,7 @@
   }
 
   function saveData(data, cb) {
-    if(process.env.DEVELOPMENT){
+    if(!process.env.PORT){
       fs.writeFile('./data/data.json', JSON.stringify(data, null, 2), function (err) {
         if (err) return console.log(err);
         if(cb && typeof cb == 'function') cb();

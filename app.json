@@ -1,0 +1,19 @@
+{
+  "name": "Valoria Server",
+  "description": "Save the world!",
+  "repository": "https://github.com/JamieRez/valoria-server",
+  "keywords": ["node", "decentralized", "data", "valoria", "server"],
+  "env": {
+    "AWS_ACCESS_KEY_ID": {
+      "description": "Find at https://console.aws.amazon.com/iam/home#/security_credentials",
+      "generator": ""
+    },
+    "AWS_SECRET_ACCESS_KEY": {
+      "description": "Find at https://console.aws.amazon.com/iam/home#/security_credentials",
+      "value": ""
+    },
+    "S3_BUCKET": {
+      "description": "Create a bucket at https://s3.console.aws.amazon.com/s3/home"
+    }
+  }
+}
