@@ -35,7 +35,16 @@ if(!process.env.AWS_ACCESS_KEY_ID){
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
   });
   s3.getObject({Bucket : process.env.S3_BUCKET, Key : "data.json"}, function(err, fileData) {
-    if(err) return;
+    if(err) {
+      data = {
+        "users": {},
+        "online": {},
+        "peers": {},
+      }
+      saveData(data, () => {
+        startSocketIO();
+      })
+    }
     data = JSON.parse(fileData.Body.toString());
     data.online = {};
     data.peers = {};
