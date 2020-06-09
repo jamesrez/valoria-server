@@ -98,7 +98,7 @@ async function startSocketIO() {
   
     socket.on('Get User', (d) => {
       if(data.users[d.username]){
-        socket.emit("Get User", data.users[d.username);
+        socket.emit("Get User", data.users[d.username]);
       }else{
         socket.emit("Get User", {...d, err : "User Does Not Exist"})
       }
