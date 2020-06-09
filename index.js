@@ -19,7 +19,7 @@ const port = process.env.PORT || 80;
 
 const fs = require('fs');
 const AWS = require('aws-sdk');
-const s3 = null;
+let s3 = null;
 let data = {};
 
 if(!process.env.AWS_ACCESS_KEY_ID){
