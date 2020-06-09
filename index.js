@@ -53,7 +53,7 @@ function saveData(data, cb) {
     });
   }else {
     console.log("UPLOAD DATA: ", data);
-    s3.upload({Bucket : "valoria", Key : "data.json", Body : JSON.stringify(data, null, 2)}, (err, fileData) => {
+    s3.upload({Bucket : process.env.S3_BUCKET, Key : "data.json", Body : JSON.stringify(data, null, 2)}, (err, fileData) => {
       if (err) console.error(`Upload Error ${err}`);
       if(cb && typeof cb == 'function') cb();
     });
