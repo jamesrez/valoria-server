@@ -4,6 +4,7 @@ const valoria = new Valoria('/')
 
 async function start(){
   if(!web3 || !web3.currentProvider) return;
+  ethereum.enable();
   provider = new ethers.providers.Web3Provider(web3.currentProvider);
   signer = await provider.getSigner();
 }
