@@ -44,13 +44,14 @@ if(!process.env.AWS_ACCESS_KEY_ID){
       saveData(data, () => {
         startSocketIO();
       })
+    }else{
+      data = JSON.parse(fileData.Body.toString());
+      data.online = {};
+      data.peers = {};
+      saveData(data, () => {
+        startSocketIO();
+      });
     }
-    data = JSON.parse(fileData.Body.toString());
-    data.online = {};
-    data.peers = {};
-    saveData(data, () => {
-      startSocketIO();
-    });
   });
 }
 
