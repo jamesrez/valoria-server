@@ -92,20 +92,25 @@ function base64ToArrayBuffer(dataUrl, cb) {
 function startSocketIO(){
   io.on('connection', function (socket) {
     socket.on('Create User', (d) => {
-      if(!data.users[d.username]){
-        data.users[d.username] = {
+      if(!data.users[d.userName]){
+        data.users[d.username] = {};
+      }
+      if(!data.users[d.username][d.userId]){
+        data.users[d.username][d.userId] = {
           username : d.username,
+          id: d.userId,
           peers : {},
           sockets : {},
           name : d.username,
           eKey : d.eKey,
           keyPair : d.keyPair,
-        };
-        data.users[d.username].peers[d.peerId] = d.peerId;
-        data.users[d.username].sockets[socket.id] = socket.id;
+        }
+        data.users[d.username][d.userId].peers[d.peerId] = d.peerId;
+        data.users[d.username][d.userId].sockets[socket.id] = socket.id;
         data.online[socket.id] = {
           username : d.username,
-          peerId : d.peerId
+          peerId : d.peerId,
+          userId : d.userId
         };
         saveData(data, () => {
           socket.emit("Create User", {success : true, ...d});
@@ -117,15 +122,15 @@ function startSocketIO(){
   
   
     socket.on('Get User', (d) => {
-      if(data.users[d.username]){
-        socket.emit("Get User", data.users[d.username]);
+      if(data.users[d.username] && data.users[d.username][d.userId]){
+        socket.emit("Get User", data.users[d.username][d.userId]);
       }else {
         socket.emit("Get User", {...d, err : "User Does Not Exist"});
       }
     });
 
     socket.on('Login User', async (d) => {
-      if(data.users[d.username]){
+      if(data.users[d.username] && data.users[d.username][d.userId]){
         const publicKey = await crypto.subtle.importKey(
           "jwk", 
           JSON.parse(data.users[d.username].keyPair.publicKey), {
@@ -138,11 +143,12 @@ function startSocketIO(){
           hash: {name: "SHA-384"},
         }, publicKey, d.signature, d.encoded);
         if(isUser){
-          data.users[d.username].peers[d.peerId] = d.peerId;
-          data.users[d.username].sockets[socket.id] = socket.id;
+          data.users[d.username][d.userId].peers[d.peerId] = d.peerId;
+          data.users[d.username][d.userId].sockets[socket.id] = socket.id;
           data.online[socket.id] = {
             username : d.username,
-            peerId : d.peerId
+            peerId : d.peerId,
+            userId : d.userId
           };
           saveData(data, () => {
             socket.emit("Login User", {success : true, ...d});
@@ -157,9 +163,10 @@ function startSocketIO(){
       if(data.online[socket.id]){
         let username = data.online[socket.id].username;
         let peerId = data.online[socket.id].peerId;
-        if(username && data.users[username]){
-          delete data.users[username].sockets[socket.id];
-          delete data.users[username].peers[peerId];
+        let userId = data.online[socket.id].userId;
+        if(username && data.users[username] && userId && data.users[username][userId]){
+          delete data.users[username][userId].sockets[socket.id];
+          delete data.users[username][userId].peers[peerId];
         }
         delete data.peers[peerId];
         delete data.online[socket.id];

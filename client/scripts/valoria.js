@@ -202,6 +202,14 @@
     );
   }
 
+  async function digestMessage(message) {
+    const msgUint8 = new TextEncoder().encode(message);                           // encode as (utf-8) Uint8Array
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);           // hash the message
+    const hashArray = Array.from(new Uint8Array(hashBuffer));                     // convert buffer to byte array
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join(''); // convert bytes to hex string
+    return hashHex;
+  }
+
   class Valoria {
 
     constructor(server){
@@ -228,37 +236,43 @@
     async register(username, password){
       const socket = this.socket;
       const peer = this.peer;
-      let gettingPeerId = setInterval(() => {
-        if(peer.id) clearInterval(gettingPeerId)
-      }, 10)
       this.username = username;
       this.password = password;
-      if(username.length > 0 && password.length > 0){
-        const encryptionKey = await window.crypto.subtle.generateKey({
-          name: "AES-GCM",
-          length: 256,
-        }, true, ["encrypt", "decrypt"]);
-        const ecKeyPair = await window.crypto.subtle.generateKey(
-          {
-            name: "ECDSA",
-            namedCurve: "P-384"
-          },
-          true,
-          ["sign", "verify"]
-        );
-        const salt = window.crypto.getRandomValues(new Uint8Array(16));
-        const keyMaterial = await getKeyMaterial(password);
-        const iv = window.crypto.getRandomValues(new Uint8Array(12));
-        wrapCryptoKeyGCM(ecKeyPair.privateKey, salt, keyMaterial, iv, async (privWrapped) => {
-          ecKeyPair.publicKey = JSON.stringify(await window.crypto.subtle.exportKey("jwk", ecKeyPair.publicKey));
-          ecKeyPair.privateKey = JSON.stringify({wrapped : privWrapped, salt: salt, iv: iv});
-          wrapCryptoKeyKW(encryptionKey, salt, keyMaterial, async (wrappedKeyBase64) => {
-            const wrapped = JSON.stringify({val : wrappedKeyBase64, salt});
-            socket.emit('Create User', {
-              username, peerId : peer.id, eKey : wrapped, keyPair : ecKeyPair
-            });    
+      let gettingPeerId = setInterval(() => {
+        if(peer.id) {
+          clearInterval(gettingPeerId);
+          continueRegister();
+        }
+      }, 10);
+      async function continueRegister(){
+        const userId = await digestMessage(username + password);
+        if(username.length > 0 && password.length > 0){
+          const encryptionKey = await window.crypto.subtle.generateKey({
+            name: "AES-GCM",
+            length: 256,
+          }, true, ["encrypt", "decrypt"]);
+          const ecKeyPair = await window.crypto.subtle.generateKey(
+            {
+              name: "ECDSA",
+              namedCurve: "P-384"
+            },
+            true,
+            ["sign", "verify"]
+          );
+          const salt = window.crypto.getRandomValues(new Uint8Array(16));
+          const keyMaterial = await getKeyMaterial(password);
+          const iv = window.crypto.getRandomValues(new Uint8Array(12));
+          wrapCryptoKeyGCM(ecKeyPair.privateKey, salt, keyMaterial, iv, async (privWrapped) => {
+            ecKeyPair.publicKey = JSON.stringify(await window.crypto.subtle.exportKey("jwk", ecKeyPair.publicKey));
+            ecKeyPair.privateKey = JSON.stringify({wrapped : privWrapped, salt: salt, iv: iv});
+            wrapCryptoKeyKW(encryptionKey, salt, keyMaterial, async (wrappedKeyBase64) => {
+              const wrapped = JSON.stringify({val : wrappedKeyBase64, salt});
+              socket.emit('Create User', {
+                userId, username, peerId : peer.id, eKey : wrapped, keyPair : ecKeyPair
+              });    
+            });
           });
-        });
+        }
       }
     }
 
@@ -266,8 +280,15 @@
       const socket = this.socket;
       const peer = this.peer;
       let gettingPeerId = setInterval(() => {
-        if(peer.id) clearInterval(gettingPeerId)
-      }, 10)
+        if(peer.id) {
+          clearInterval(gettingPeerId);
+          continueLogin();
+        }
+      }, 10);
+      async function continueLogin(){
+        const userId = await digestMessage(username + password);
+        this.socket.emit('Get User', {userId});
+      }
       this.socket.on('Get User', async (d) => {
         const salt = Uint8Array.from(Object.values(JSON.parse(d.eKey).salt));
         const iv = Uint8Array.from(Object.values(JSON.parse(d.keyPair.privateKey).iv));
@@ -289,11 +310,10 @@
               name: "ECDSA",
               hash: {name: "SHA-384"},
             }, d.keyPair.privateKey, encoded);
-            socket.emit("Login User", {username : d.username, peerId : peer.id, signature, encoded});
+            socket.emit("Login User", {userId: d.userId, username : d.username, peerId : peer.id, signature, encoded});
           });
         });
       });
-      this.socket.emit('Get User', {username});
     }
   }
 
