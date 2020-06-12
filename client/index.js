@@ -7,6 +7,13 @@ async function start(){
   ethereum.enable();
   provider = new ethers.providers.Web3Provider(web3.currentProvider);
   signer = await provider.getSigner();
+  const username = sessionStorage.getItem('valoriaUsername');
+  const password = sessionStorage.getItem('valoriaPassword')
+  if(username && password){
+    valoria.login(username, password, (user) => {
+      window.user = user;
+    });
+  }
 }
 
 start();
@@ -20,7 +27,11 @@ async function joinWithWeb3(){
     usernameSignature,
     await signer.getAddress(),
   ]);
-  valoria.register(usernameSignature, passwordSignature);
+  valoria.register(usernameSignature, passwordSignature, (user) => {
+    sessionStorage.setItem('valoriaUsername', usernameSignature);
+    sessionStorage.setItem('valoriaPassword', passwordSignature);
+    window.user = user;
+  });
 }
 
 $('.valoriaJoinWithWeb3Wallet').on('click', () => {

@@ -62,7 +62,6 @@ function saveData(data, cb) {
       if(cb && typeof cb == 'function') cb();
     });
   }else {
-    console.log("UPLOAD DATA: ", data);
     s3.upload({Bucket : process.env.S3_BUCKET, Key : "data.json", Body : JSON.stringify(data, null, 2)}, (err, fileData) => {
       if (err) console.error(`Upload Error ${err}`);
       if(cb && typeof cb == 'function') cb();
@@ -133,7 +132,7 @@ function startSocketIO(){
       if(data.users[d.username] && data.users[d.username][d.userId]){
         const publicKey = await crypto.subtle.importKey(
           "jwk", 
-          JSON.parse(data.users[d.username].keyPair.publicKey), {
+          JSON.parse(data.users[d.username][d.userId].keyPair.publicKey), {
           name: "ECDSA",
           namedCurve: "P-384"
         }, true, ['verify']);
@@ -173,6 +172,97 @@ function startSocketIO(){
         saveData(data);
       }
     });
+
+    function saveDataToPath(data, path, value){
+      let thisKey = Object.keys(path)[0];
+      while(path[thisKey] && typeof path[thisKey] === 'object'){
+        if(!data[thisKey] || typeof data[thisKey] !== 'object'){
+          data[thisKey] = {};
+        }
+        path = path[thisKey];
+        let prevKey = thisKey;
+        thisKey = Object.keys(path)[0];
+        if(path[thisKey]){
+          data[prevKey][thisKey] = data[prevKey][thisKey] || {};
+        }
+        data = data[prevKey];
+      }
+      if(typeof data !== 'object'){
+        data = {};
+      }
+      data[thisKey] = value;
+      return data;
+    }
+
+    socket.on("Save User Data", async (d) => {
+      if(data.online[socket.id]){
+        if(!process.env.AWS_ACCESS_KEY_ID){
+          let userData = require(`./data/${d.userId}.json`);
+          saveDataToPath(userData, d.path, d.data)
+          fs.writeFile(`./data/${data.online[socket.id].userId}.json`, JSON.stringify(userData, null, 2), function (err) {
+            if (err) return console.log(err);
+          });
+        }else {
+          s3.getObject({Bucket : process.env.S3_BUCKET, Key : `${d.userId}.json`}, function(err, userData) {
+            if(err) console.log("S3 Err: ", err);
+            if(userData){
+              userData = JSON.parse(userData.Body.toString());
+              saveDataToPath(userData, d.path, d.data)
+              s3.upload({Bucket : process.env.S3_BUCKET, Key : `${data.online[socket.id].userId}.json`, Body : JSON.stringify(userData, null, 2)}, (err, fileData) => {
+                if (err) console.error(`Upload Error ${err}`);
+              });
+            }
+          })
+        }
+      }
+    })
+
+    function getDataFromPath(d, path){
+      let thisKey = Object.keys(path)[0];
+      while(path[thisKey] && typeof path[thisKey] === 'object'){
+        if(!d[thisKey] || typeof d[thisKey] !== 'object'){
+          d[thisKey] = {};
+        }
+        path = path[thisKey];
+        let prevKey = thisKey;
+        thisKey = Object.keys(path)[0];
+        if(path[thisKey]){
+          d[prevKey][thisKey] = d[prevKey][thisKey] || {};
+        }
+        d = d[prevKey];
+      }
+      if(typeof d !== 'object'){
+        d = {};
+      }
+      d = d[thisKey];
+      if(d && typeof d === 'object'){
+        Object.keys(d).forEach((key) => {
+          if(d[key] && typeof d[key] === 'object'){
+            d[key] = {};
+          }
+        })
+      }
+      return d;
+    }
+
+    socket.on("Get User Data", async(d) => {
+      if(data.users[d.username] && data.users[d.username][d.userId]){
+        if(!process.env.AWS_ACCESS_KEY_ID){
+          const userData = JSON.stringify(require(`./data/${d.userId}.json`));
+          let thisData = getDataFromPath(JSON.parse(userData), d.path);
+          socket.emit("Get User Data", thisData);
+        }else{
+          s3.getObject({Bucket : process.env.S3_BUCKET, Key : `${d.userId}.json`}, function(err, fileData) {
+            if(err) console.log("S3 Err: ", err);
+            if(fileData){
+              fileData = fileData.Body.toString();
+            }
+            socket.emit("Get User Data", fileData)
+          })
+        }
+      }
+    })
+
   })
 };
 
