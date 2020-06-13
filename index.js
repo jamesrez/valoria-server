@@ -20,10 +20,16 @@ const port = process.env.PORT || 80;
 const fs = require('fs');
 const AWS = require('aws-sdk');
 let s3 = null;
-let data = {};
+let data = {
+  online: {},
+  users: {},
+  peers: {},
+  dimensions: {}
+};
 
 if(!process.env.AWS_ACCESS_KEY_ID){
-  data = require('./data/data.json');
+  let d = fs.readFileSync('./data/data.json', 'utf8');
+  if(d)  Object.assign(data, JSON.parse(d));
   data.online = {};
   saveData(data, () => {
     startSocketIO();
@@ -40,6 +46,7 @@ if(!process.env.AWS_ACCESS_KEY_ID){
         "users": {},
         "online": {},
         "peers": {},
+        "dimensions": {}
       }
       saveData(data, () => {
         startSocketIO();
@@ -95,22 +102,46 @@ function startSocketIO(){
         data.users[d.username] = {};
       }
       if(!data.users[d.username][d.userId]){
+        const dimension = d.dimension || "valoria";
         data.users[d.username][d.userId] = {
           username : d.username,
           id: d.userId,
-          peers : {},
-          sockets : {},
-          name : d.username,
-          eKey : d.eKey,
-          keyPair : d.keyPair,
+          peers: {},
+          sockets: {},
+          name: d.username,
+          eKey: d.eKey,
+          keyPair: d.keyPair,
+          dimension: dimension
         }
         data.users[d.username][d.userId].peers[d.peerId] = d.peerId;
         data.users[d.username][d.userId].sockets[socket.id] = socket.id;
+        if(!data.dimensions[dimension]){
+          data.dimensions[dimension] = { peers: {}, sockets: {} };
+        }
+        data.dimensions[dimension].peers[d.peerId] = {
+          username : d.username,
+          userId : d.userId,
+          socket : socket.id,
+        };
+        data.dimensions[dimension].sockets[socket.id] = {
+          username : d.username,
+          peerId : d.peerId,
+          userId : d.userId,
+        };
         data.online[socket.id] = {
           username : d.username,
           peerId : d.peerId,
-          userId : d.userId
+          userId : d.userId,
+          dimension : dimension
         };
+        Object.keys(data.dimensions[dimension].sockets).forEach((socketId) => {
+          io.to(socketId).emit("New Peer in Dimension", {
+            username : d.username,
+            userId : d.userId,
+            socket : socket.id,
+            peerId : d.peerId
+          });
+        })
         saveData(data, () => {
           socket.emit("Create User", {success : true, ...d});
         });
@@ -142,13 +173,37 @@ function startSocketIO(){
           hash: {name: "SHA-384"},
         }, publicKey, d.signature, d.encoded);
         if(isUser){
+          const dimension = d.dimension || "valoria";
           data.users[d.username][d.userId].peers[d.peerId] = d.peerId;
           data.users[d.username][d.userId].sockets[socket.id] = socket.id;
+          data.users[d.username][d.userId].dimension = dimension;
+          if(!data.dimensions[dimension]){
+            data.dimensions[dimension] = { peers: {}, sockets: {} };
+          }
+          data.dimensions[dimension].peers[d.peerId] = {
+            username : d.username,
+            userId : d.userId,
+            socket : socket.id,
+          };
+          data.dimensions[dimension].sockets[socket.id] = {
+            username : d.username,
+            peerId : d.peerId,
+            userId : d.userId,
+          };
           data.online[socket.id] = {
             username : d.username,
             peerId : d.peerId,
-            userId : d.userId
+            userId : d.userId,
+            dimension : dimension
           };
+          Object.keys(data.dimensions[dimension].sockets).forEach((socketId) => {
+            io.to(socketId).emit("New Peer in Dimension", {
+              username : d.username,
+              userId : d.userId,
+              socket : socket.id,
+              peerId : d.peerId
+            });
+          })
           saveData(data, () => {
             socket.emit("Login User", {success : true, ...d});
           });
@@ -166,12 +221,32 @@ function startSocketIO(){
         if(username && data.users[username] && userId && data.users[username][userId]){
           delete data.users[username][userId].sockets[socket.id];
           delete data.users[username][userId].peers[peerId];
+          let dimension = data.users[username][userId].dimension;
+          if(data.dimensions[dimension].peers[peerId]){
+            delete data.dimensions[dimension].peers[peerId];
+          }
+          if(data.dimensions[dimension].sockets[socket.id]){
+            delete data.dimensions[dimension].sockets[socket.id];
+          }
+          Object.keys(data.dimensions[dimension].sockets).forEach((socketId) => {
+            io.to(socketId).emit("Peer Has Left Dimension", peerId);
+          })
         }
         delete data.peers[peerId];
         delete data.online[socket.id];
         saveData(data);
       }
     });
+
+    socket.on("Get Peers in Dimension", (dimId) => {
+      if(!dimId) dimId = 'valoria';
+      if(data.online[socket.id] && data.dimensions[dimId]){
+        socket.emit("Get Peers in Dimension", data.dimensions[dimId].peers);
+      }else if(!data.dimensions[dimId]){
+        data.dimensions[dimId] = {peers : {}};
+        saveData(data);
+      }
+    })
 
     function saveDataToPath(data, path, value){
       let thisKey = Object.keys(path)[0];
@@ -197,7 +272,12 @@ function startSocketIO(){
     socket.on("Save User Data", async (d) => {
       if(data.online[socket.id]){
         if(!process.env.AWS_ACCESS_KEY_ID){
-          let userData = require(`./data/${d.userId}.json`);
+          let userData;
+          try {
+           userData = require(`./data/${d.userId}.json`);
+          } catch {
+            userData = {};
+          }
           saveDataToPath(userData, d.path, d.data)
           fs.writeFile(`./data/${data.online[socket.id].userId}.json`, JSON.stringify(userData, null, 2), function (err) {
             if (err) return console.log(err);

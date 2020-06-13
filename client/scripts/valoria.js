@@ -212,20 +212,23 @@
 
   class Valoria {
 
-    constructor(server){
+    constructor(server, dimension){
       this.server = server;
       this.socket = io(this.server);
       this.peer = new Peer();
+      this.dimension = dimension || "valoria";
       this.username;
       this.password;
       this.user;
-
+      this.peers = {};
     }
 
     async register(username, password, cb){
       const thisValoria = this;
       const socket = this.socket;
       const peer = this.peer;
+      const dimension = this.dimension;
+      const getPeers = this.getPeers;
       this.username = username;
       this.password = password;
       let gettingPeerId = setInterval(() => {
@@ -255,7 +258,8 @@
             peerId: peer.id,
             eKey: encryptionKey,
             keyPair: ecKeyPair,
-            socket: socket
+            socket: socket,
+            dimension: dimension
           });
           const salt = window.crypto.getRandomValues(new Uint8Array(16));
           const keyMaterial = await getKeyMaterial(password);
@@ -277,6 +281,7 @@
                   });
                 }else{
                   if(cb && typeof cb === 'function'){
+                    thisValoria.getPeers()
                     cb(thisValoria.user);
                   }
                 }
@@ -290,6 +295,7 @@
     async login(username, password, cb){
       const socket = this.socket;
       const peer = this.peer;
+      const dimension = this.dimension;
       const thisValoria = this;
       const userId = await digestMessage(username + password);
       let gettingPeerId = setInterval(() => {
@@ -328,7 +334,8 @@
               peerId: peer.id,
               eKey: d.eKey,
               keyPair: d.keyPair,
-              socket: socket
+              socket: socket,
+              dimension: dimension
             });
             socket.emit("Login User", {userId, username, peerId : peer.id, signature, encoded});
             socket.on("Login User", async (d) => {
@@ -336,6 +343,7 @@
                 console.log("COULD NOT AUTHENTICATE USER");
               }else{
                 if(cb && typeof cb === 'function'){
+                  thisValoria.getPeers();
                   cb(thisValoria.user);
                 }
               }
@@ -343,6 +351,36 @@
           });
         });
       });
+    }
+
+    async getPeers(cb){
+      console.log(this);
+      const dimension = this.dimension;
+      const socket = this.socket;
+      const peerId = this.peer.id
+      const allPeers = this.peers;
+      socket.emit("Get Peers in Dimension", dimension);
+      socket.on("Get Peers in Dimension", (peers) => {
+        Object.assign(allPeers, peers)
+        delete allPeers[peerId];
+        if(cb && typeof cb === 'function'){
+          cb(allPeers);
+        }
+      })
+      socket.on("New Peer in Dimension", (peer) => {
+        if(!peer || !peer.peerId) return;
+        allPeers[peer.peerId] = peer;
+        if(cb && typeof cb === 'function'){
+          cb(allPeers);
+        }
+      })
+      socket.on("Peer Has Left Dimension", (peerId) => {
+        if(!peerId) return;
+        delete allPeers[peerId];
+        if(cb && typeof cb === 'function'){
+          cb(allPeers);
+        }
+      })
     }
 
   }
@@ -450,7 +488,7 @@
       return data;
     }
 
-    async put(d){
+    async set(d){
       this.value = d;
       this.saveDataToPath(this.user.data, this.path, d)
       this.user.socket.emit("Save User Data", {

@@ -1,6 +1,42 @@
 {
-  "users": {},
   "online": {},
+  "users": {
+    "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c": {
+      "a307ca8db4bcc507378838578b6c42006c52339f1ec7e50d2e61bb2360fd8953": {
+        "username": "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c",
+        "id": "a307ca8db4bcc507378838578b6c42006c52339f1ec7e50d2e61bb2360fd8953",
+        "peers": {},
+        "sockets": {},
+        "name": "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c",
+        "eKey": "{\"val\":\"data:application/octet-binary;base64,PCALI6H3w3Y+RkzPrMwISMtMPDIKuCwoc7RfIUw2owWoxEHVcSgGlg==\",\"salt\":{\"0\":124,\"1\":41,\"2\":186,\"3\":29,\"4\":241,\"5\":139,\"6\":249,\"7\":176,\"8\":231,\"9\":117,\"10\":32,\"11\":60,\"12\":22,\"13\":53,\"14\":236,\"15\":235}}",
+        "keyPair": {
+          "publicKey": "{\"crv\":\"P-384\",\"ext\":true,\"key_ops\":[\"verify\"],\"kty\":\"EC\",\"x\":\"k1UCigMv5BAvEPRfcW8q2Sv46I_9xzZE2IzB2T1MnEiz0bIN54HHN6QZJdAoUv97\",\"y\":\"yDMIqQudcKA3cC8tCkDHIZf1_F057MyT-0Bgrn7729jJ1fxrmHqjnRRV5Pt8zqF-\"}",
+          "privateKey": "{\"wrapped\":\"data:application/octet-binary;base64,qwdXFndL+kqErZ4S2gzhSC7HkdQyYz0IXDPojm1awIClUaYbREB+tQHuxZxT72PoeQAricjtnvgVQ93PTv91uP89z1/aD3BXcMYL7CKZE+YZku+F8HOpo0xovfnABSkbXeWd8gbttXQZibfplWi4CCglB6jArZmMVt1AchszFkCH8LqDXrefxAOhKijZJAcfekIz85dBFKabMScQCr3GuanQSwzHVa6emwx5htktnYRhu1ZEghHTn/z6kEHQmp+cS+FBh+XJuHwPAAVCga46/0Q3XDgxHVOsUxir8A4JgXq2grTpgppmxeYdXQyIsJ2LUd3edvCdbEwVQhRqc/RfrG5nKIIXZu+irRTmo6pJodVWl8H79leUuIdQzVtN\",\"salt\":{\"0\":124,\"1\":41,\"2\":186,\"3\":29,\"4\":241,\"5\":139,\"6\":249,\"7\":176,\"8\":231,\"9\":117,\"10\":32,\"11\":60,\"12\":22,\"13\":53,\"14\":236,\"15\":235},\"iv\":{\"0\":215,\"1\":73,\"2\":21,\"3\":130,\"4\":146,\"5\":143,\"6\":25,\"7\":110,\"8\":189,\"9\":199,\"10\":64,\"11\":40}}"
+        },
+        "dimension": "valoria"
+      }
+    },
+    "james": {
+      "9a9808a45134bc6bcad2c3d01dcef39c121da7977c5051490ea726dd683e3621": {
+        "username": "james",
+        "id": "9a9808a45134bc6bcad2c3d01dcef39c121da7977c5051490ea726dd683e3621",
+        "peers": {},
+        "sockets": {},
+        "name": "james",
+        "eKey": "{\"val\":\"data:application/octet-binary;base64,LLtviqOLEhn2NLWvnxVMO1qwsTnLmXnb6n5ZTIxbs/x4PvR9pLkrjQ==\",\"salt\":{\"0\":154,\"1\":240,\"2\":205,\"3\":116,\"4\":108,\"5\":38,\"6\":181,\"7\":35,\"8\":72,\"9\":148,\"10\":116,\"11\":180,\"12\":9,\"13\":166,\"14\":82,\"15\":215}}",
+        "keyPair": {
+          "publicKey": "{\"crv\":\"P-384\",\"ext\":true,\"key_ops\":[\"verify\"],\"kty\":\"EC\",\"x\":\"t_1b_bvIHjLNdzFBPmi5w2i5r89N8mWGJd92RnxpDZLeZJmyqi7UhL8GVU0rc5FW\",\"y\":\"RYy6vjEaWg6Wf-zLNFzh9PjnKl1NhptxiOHKI5lihZYgGvl2EEgy1qgnnOZm52Kk\"}",
+          "privateKey": "{\"wrapped\":\"data:application/octet-binary;base64,Uft2NZ6rS8pGRQ3lTw7EIIoMq59NKVSaNEZTjNdjFsXUrrGBrrUVO5WSqdLbBW2hQsklR7dy1T48k23vn/rV3atrTnzxZAGr55/0Y5b6LXa/YOy9Cs5xohMCMwKzUHoa3XSWrEyWKQ60ERdv/vpmdGElFEYvi0U0FJVM+/CJ9wZXXgrqvice8pW44eZEhgEt58ucn4ODKGeryuGpCxJ4wAJL85Jhjl55TmYxvojG2o7LGU6r3hl2myW/KGbfbvHgs+RY0BRHu9/Z2Uc9wIU+353mRMOKbIFodVw7VSyEJ7xedlUVYm27+tYP1t2L7+7KvyfPVu0TOjNFYL8oufedYer5+b4YSJoN/dmANAOLT4OY39ZavyGWouco3NEh\",\"salt\":{\"0\":154,\"1\":240,\"2\":205,\"3\":116,\"4\":108,\"5\":38,\"6\":181,\"7\":35,\"8\":72,\"9\":148,\"10\":116,\"11\":180,\"12\":9,\"13\":166,\"14\":82,\"15\":215},\"iv\":{\"0\":64,\"1\":106,\"2\":84,\"3\":128,\"4\":85,\"5\":224,\"6\":230,\"7\":22,\"8\":153,\"9\":195,\"10\":56,\"11\":66}}"
+        },
+        "dimension": "valoria"
+      }
+    }
+  },
   "peers": {},
-  "dimensions": {}
+  "dimensions": {
+    "valoria": {
+      "peers": {},
+      "sockets": {}
+    }
+  }
 }
