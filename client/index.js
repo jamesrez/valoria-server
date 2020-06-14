@@ -1,6 +1,11 @@
 let provider;
 let signer;
-const valoria = new Valoria('/')
+let currentChat = {};
+
+const valoria = new Valoria({
+  server: '/',
+  peerHost: 'https://valoria-peer-server-0.herokuapp.com/'
+})
 
 async function start(){
   if(!web3 || !web3.currentProvider) return;
@@ -63,7 +68,55 @@ $('.valoriaAuthSubmit').on('click', () => {
 
 async function startChat(){
   $('.valoriaHeader').text("Valoria Chat");
+  $('.valoriaSecondHeader').text("Signed in as: " + valoria.user.username);
   $('.valoriaAuth').css('display', 'none');
   $('.valoriaChat').css('display', 'flex');
-  
+  loadOnlineUsers();
 } 
+
+async function loadOnlineUsers(){
+  valoria.getPeers((peers) => {
+    $('.chatOnlineList').empty()
+    const loaded = {};
+    Object.keys(peers).forEach((peerId) => {
+      const peer = peers[peerId];
+      if(loaded[peer.username]) return;
+      loaded[peer.username] = true;
+      let el = document.createElement('div');
+      el.className = 'chatOnlineUser hideScrollbar'
+      el.textContent = peer.username;
+      $(el).on('click', e => connectToPeer(peer));
+      $('.chatOnlineList').append(el);
+    })
+  })
+}
+
+async function connectToPeer(peer){
+  valoria.getUser({userId: peer.userId, username: peer.username}, (u) => {
+    window.peer = u;
+    delete currentChat.channel;
+    currentChat.userId = u.id;
+    $('.chatMsgForm').css('display', 'flex');
+    $('.chatName').text(u.username);
+    u.get('chat').get('users').get(user.id).on((msgTimes) => {
+      console.log(msgTimes);
+    });
+  });
+}
+
+$('.chatMsgInput').on('keyup', (e) => {
+  if(e.keyCode === 13){
+    sendMessage($('.chatMsgInput').val())
+  }
+})
+
+$('.chatMsgInputSubmit').on('click', () => sendMessage($('.chatMsgInput').val()));
+
+async function sendMessage(msg){
+  if(msg.length < 1) return;
+  $('.chatMsgInput').val('');
+  if(currentChat.userId){
+    const time = Date.now();
+    valoria.user.get('chat').get('users').get(currentChat.userId).get(time).set(msg);
+  }
+}

@@ -28,8 +28,13 @@ let data = {
 };
 
 if(!process.env.AWS_ACCESS_KEY_ID){
-  let d = fs.readFileSync('./data/data.json', 'utf8');
-  if(d)  Object.assign(data, JSON.parse(d));
+  try {
+    let d = fs.readFileSync('./data/data.json', 'utf8');
+    if(d) Object.assign(data, JSON.parse(d));
+  } catch {
+    fs.mkdirSync('./data/', {recursive : true});
+    fs.writeFileSync('data/data.json', data, {flag: 'a'});
+  }
   data.online = {};
   saveData(data, () => {
     startSocketIO();
@@ -248,20 +253,40 @@ function startSocketIO(){
       }
     })
 
-    function saveDataToPath(data, path, value){
+
+    //MUST FIX THIS
+    function saveDataToPath(data, userId, path, value){
       let thisKey = Object.keys(path)[0];
+      let uniquePathObj = {[thisKey] : null};
+      let uniquePathObjCurrent = uniquePathObj;
+      let uniquePath = userId + JSON.stringify(uniquePathObj);
       while(path[thisKey] && typeof path[thisKey] === 'object'){
         if(!data[thisKey] || typeof data[thisKey] !== 'object'){
           data[thisKey] = {};
+          let keyAfterThis = Object.keys(path[thisKey])[0];
+          let thisValue = JSON.stringify(uniquePathObjCurrent)
+          thisValue = JSON.parse(thisValue)[thisKey] = {[keyAfterThis] : null}
+          uniquePath = userId + JSON.stringify(uniquePathObj);
+          io.to(uniquePath).emit("Get User Data", {data: thisValue, path: uniquePath});
         }
         path = path[thisKey];
         let prevKey = thisKey;
         thisKey = Object.keys(path)[0];
+        uniquePathObjCurrent[prevKey] = {[thisKey] : null};
+        uniquePathObjCurrent = uniquePathObjCurrent[prevKey];
         if(path[thisKey]){
-          data[prevKey][thisKey] = data[prevKey][thisKey] || {};
+          if(!data[prevKey][thisKey]){
+            data[prevKey][thisKey] = {};
+            let keyAfterThis = Object.keys(path[thisKey])[0];
+            let thisValue = JSON.stringify(uniquePathObjCurrent)
+            thisValue = JSON.parse(thisValue)[thisKey] = {[keyAfterThis] : null}
+            uniquePath = userId + JSON.stringify(uniquePathObj);
+            io.to(uniquePath).emit("Get User Data", {data: thisValue, path: uniquePath});
+          }
         }
         data = data[prevKey];
       }
+      io.to(uniquePath).emit("Get User Data", {data: value, path: uniquePath});
       if(typeof data !== 'object'){
         data = {};
       }
@@ -278,8 +303,8 @@ function startSocketIO(){
           } catch {
             userData = {};
           }
-          saveDataToPath(userData, d.path, d.data)
-          fs.writeFile(`./data/${data.online[socket.id].userId}.json`, JSON.stringify(userData, null, 2), function (err) {
+          saveDataToPath(userData, d.userId, d.path, d.data);
+          fs.writeFile(`./data/${d.userId}.json`, JSON.stringify(userData, null, 2), function (err) {
             if (err) return console.log(err);
           });
         }else {
@@ -287,8 +312,8 @@ function startSocketIO(){
             if(err) console.log("S3 Err: ", err);
             if(userData){
               userData = JSON.parse(userData.Body.toString());
-              saveDataToPath(userData, d.path, d.data)
-              s3.upload({Bucket : process.env.S3_BUCKET, Key : `${data.online[socket.id].userId}.json`, Body : JSON.stringify(userData, null, 2)}, (err, fileData) => {
+              saveDataToPath(userData, d.userId, d.path, d.data)
+              s3.upload({Bucket : process.env.S3_BUCKET, Key : `${d.userId}.json`, Body : JSON.stringify(userData, null, 2)}, (err, fileData) => {
                 if (err) console.error(`Upload Error ${err}`);
               });
             }
@@ -327,17 +352,24 @@ function startSocketIO(){
 
     socket.on("Get User Data", async(d) => {
       if(data.users[d.username] && data.users[d.username][d.userId]){
+        const uniquePath = d.userId + JSON.stringify(d.path)
+        socket.join(uniquePath);
         if(!process.env.AWS_ACCESS_KEY_ID){
-          const userData = JSON.stringify(require(`./data/${d.userId}.json`));
+          let userData = "{}";
+          try {
+            userData = fs.readFileSync(`./data/${d.userId}.json`, 'utf8')
+          } catch {
+            fs.writeFileSync(`./data/${d.userId}.json`, '{}', {flag: 'a'});
+          }
           let thisData = getDataFromPath(JSON.parse(userData), d.path);
-          socket.emit("Get User Data", thisData);
+          socket.emit("Get User Data", {data: thisData, path: uniquePath});
         }else{
           s3.getObject({Bucket : process.env.S3_BUCKET, Key : `${d.userId}.json`}, function(err, fileData) {
             if(err) console.log("S3 Err: ", err);
             if(fileData){
               fileData = fileData.Body.toString();
             }
-            socket.emit("Get User Data", fileData)
+            socket.emit("Get User Data", {data: fileData, path: uniquePath})
           })
         }
       }

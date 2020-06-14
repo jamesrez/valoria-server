@@ -212,15 +212,24 @@
 
   class Valoria {
 
-    constructor(server, dimension){
-      this.server = server;
+    constructor(opts){
+      this.server = opts.server;
       this.socket = io(this.server);
-      this.peer = new Peer();
-      this.dimension = dimension || "valoria";
+      let peerHost = opts.peerServer || 'valoria-peer-server-0.herokuapp.com';
+      if(peerHost.startsWith('https://')) peerHost = peerHost.substr(8) 
+      if(peerHost.startsWith('www')) peerHost = peerHost.substr(3);
+      if(peerHost.substr(-1) === '/') peerHost = peerHost.substr(0, peerHost.length - 1);
+      this.peer = new Peer({
+        host: peerHost,
+        path: '/peerjs/valoria',
+        debug: 2,
+        secure: true
+      });
+      this.dimension = opts.dimension || "valoria";
       this.username;
-      this.password;
       this.user;
       this.peers = {};
+      this.datas = {};
     }
 
     async register(username, password, cb){
@@ -230,7 +239,6 @@
       const dimension = this.dimension;
       const getPeers = this.getPeers;
       this.username = username;
-      this.password = password;
       let gettingPeerId = setInterval(() => {
         if(peer.id) {
           clearInterval(gettingPeerId);
@@ -255,11 +263,12 @@
           thisValoria.user = new ValoriaUser({
             username: username,
             id: userId,
-            peerId: peer.id,
+            peers: {[peer.id]: peer.id},
             eKey: encryptionKey,
             keyPair: ecKeyPair,
-            socket: socket,
-            dimension: dimension
+            sockets: {[socket.id]: socket},
+            dimension: dimension,
+            valoria: thisValoria
           });
           const salt = window.crypto.getRandomValues(new Uint8Array(16));
           const keyMaterial = await getKeyMaterial(password);
@@ -274,7 +283,7 @@
               });  
               socket.on("Create User", async (d) => {
                 if(d.err){
-                  this.login(this.username, this.password, (user) => {
+                  this.login(username, password, (user) => {
                     if(cb && typeof cb === 'function'){
                       cb(user);
                     }
@@ -282,6 +291,7 @@
                 }else{
                   if(cb && typeof cb === 'function'){
                     thisValoria.getPeers()
+                    thisValoria.onData();
                     cb(thisValoria.user);
                   }
                 }
@@ -331,11 +341,12 @@
             thisValoria.user = new ValoriaUser({
               username: username,
               id: userId,
-              peerId: peer.id,
+              peers: {[peer.id] : peer.id},
               eKey: d.eKey,
               keyPair: d.keyPair,
-              socket: socket,
-              dimension: dimension
+              sockets: {[socket] : socket},
+              dimension: dimension,
+              valoria: thisValoria
             });
             socket.emit("Login User", {userId, username, peerId : peer.id, signature, encoded});
             socket.on("Login User", async (d) => {
@@ -344,6 +355,7 @@
               }else{
                 if(cb && typeof cb === 'function'){
                   thisValoria.getPeers();
+                  thisValoria.onData();
                   cb(thisValoria.user);
                 }
               }
@@ -354,7 +366,6 @@
     }
 
     async getPeers(cb){
-      console.log(this);
       const dimension = this.dimension;
       const socket = this.socket;
       const peerId = this.peer.id
@@ -383,6 +394,40 @@
       })
     }
 
+    async getUser(d, cb){
+      const socket = this.socket;
+      socket.off('Get User');
+      socket.emit('Get User', d);
+      socket.on('Get User', (user) => {
+        user = new ValoriaUser({
+          username: user.username,
+          id: user.id,
+          peers: user.peers,
+          sockets: user.sockets,
+          eKey: user.eKey,
+          keyPair: user.keyPair,
+          dimension: user.dimension,
+          valoria: this
+        });
+        if(user && cb && typeof cb === 'function') cb(user)
+      })
+    }
+
+    onData(){
+      Object.keys(this.user.sockets).forEach((id) => {
+        this.user.sockets[id].on('Get User Data', (d) => {
+          let vData = this.datas[d.path]
+          if(d.data){
+            if(typeof d.data === 'object') vData.saveBaseDataToPath(JSON.parse(JSON.stringify(d.data)));
+            else vData.saveBaseDataToPath(d.data);
+          }
+          if(vData.onNew && typeof vData.onNew === 'function'){
+            vData.onNew(d.data);
+          }
+        })
+      })
+    }
+
   }
 
   class ValoriaUser {
@@ -390,12 +435,12 @@
     constructor(u){
       this.id = u.id;
       this.username = u.username;
-      this.peerId = u.peerId;
-      this.socket = u.socket;
+      this.peers = u.peers;
+      this.sockets = u.sockets;
       this.keyPair = u.keyPair;
       this.eKey = u.eKey;
-      this.name = u.name;
       this.data = u.data || {};
+      this.valoria = u.valoria;
     }
 
     get(key){
@@ -409,6 +454,7 @@
       this.path = d.path;
       this.value = d.value;
       this.user = d.user;
+      this.onNew;
     }
 
     get(key){
@@ -436,7 +482,12 @@
         data[thisKey] = {};
       }
       data = data[thisKey][key]
-      return new ValoriaData({path: this.path, value: data, user: this.user});
+      this.user.valoria.datas[this.user.id + JSON.stringify(this.path)] = new ValoriaData({
+        path: this.path, 
+        value: data, 
+        user: this.user
+      })
+      return this.user.valoria.datas[this.user.id + JSON.stringify(this.path)];
     }
 
     saveDataToPath(data, path, value){
@@ -476,6 +527,7 @@
         }
         data = data[prevKey];
       }
+
       if(typeof data !== 'object'){
         data = {};
       }
@@ -490,29 +542,26 @@
 
     async set(d){
       this.value = d;
-      this.saveDataToPath(this.user.data, this.path, d)
-      this.user.socket.emit("Save User Data", {
-        data: d,
-        path: this.path,
-        userId: this.user.id,
-        username: this.user.username
+      this.saveDataToPath(this.user.data, this.path, d);
+      Object.keys(this.user.valoria.user.sockets).forEach((id) => {
+        this.user.valoria.user.sockets[id].emit("Save User Data", {
+          data: d,
+          path: this.path,
+          userId: this.user.id,
+          username: this.user.username
+        })
       })
     }
 
-    async once(cb){
-      this.user.socket.emit("Get User Data", {username: this.user.username, userId: this.user.id, path: this.path})
-      this.user.socket.on('Get User Data', (data) => {
-        this.saveBaseDataToPath(data);
-        this.user.socket.off('Get User Data');
-        if(cb && typeof cb === 'function') {
-          cb(data)
+    async on(cb){
+      this.onNew = (d) => {
+        if(cb && typeof cb === 'function'){
+          cb(d);
         }
+      }
+      Object.keys(this.user.valoria.user.sockets).forEach((id) => {
+        this.user.valoria.user.sockets[id].emit("Get User Data", {username: this.user.username, userId: this.user.id, path: this.path})
       })
-    }
-
-    async on(){
-      if(this.value) return this.value;
-      console.log("LETS SEARCH THE PEERS");
     }
 
   }

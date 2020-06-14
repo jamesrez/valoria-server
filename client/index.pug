@@ -9,6 +9,7 @@ head
   script(src="scripts/valoria.js")
 body
   h1.valoriaHeader Valoria
+  h2.valoriaSecondHeader.hideScrollbar
   .valoriaAuth
     input.valoriaUsernameInput(placeholder="username")
     input.valoriaPasswordInput(placeholder="password" type="password")
@@ -18,11 +19,14 @@ body
 
   .valoriaChat
     .chatSidebar
+      .chatOnline
+        .chatOnlineLabel ONLINE
+        .chatOnlineList
       .chatContacts
 
     .chatMain
       .chatNav
-        .chatName SELECT A PERSON TO CHAT WITH
+        .chatName.hideScrollbar SELECT A PERSON TO CHAT WITH
         .chatDelete DELETE CHAT
       .chatMsgContainer
         .chatMsgContainerList

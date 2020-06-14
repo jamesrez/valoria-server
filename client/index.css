@@ -8,10 +8,26 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+.hideScrollbar:{
+  -ms-overflow-style: none;
+}
+
+.hideScrollbar::-webkit-scrollbar {
+  display : none;
+}
+
 .valoriaHeader {
   text-align: center;
   font-weight: bold;
   font-size: 36px;
+}
+
+.valoriaSecondHeader {
+  text-align: center;
+  font-weight: bold;
+  font-size: 16px;
+  max-width: 250px;
+  overflow-x: scroll;
 }
 
 .valoriaAuth {
@@ -105,6 +121,11 @@ body {
 .chatName {
   font-weight: bold;
   font-size: 16px;
+  white-space: nowrap;
+  font-weight: bold;
+  margin: 8px;
+  max-width: 300px;
+  overflow-x: scroll;
 }
 
 .chatDelete {
@@ -139,7 +160,7 @@ body {
 }
 
 .chatMsgForm {
-  display: flex;
+  display: none;
   flex-direction: row;
   align-items: center;
   height: 32px;
@@ -170,6 +191,41 @@ body {
   cursor : pointer;
   width: 125px;
 }
+
+.chatOnline{
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.chatOnlineLabel{
+  font-weight: bold;
+  font-size: 16px;;
+}
+
+.chatOnlineList{
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.chatOnlineUser{
+  font-size: 15px;
+  white-space: nowrap;
+  font-weight: bold;
+  cursor: pointer;
+  margin: 8px;
+  max-width: 90%;
+  overflow-x: scroll;
+}
+
+.chatOnlineUser:hover{
+  text-decoration: underline;
+}
+
+
+
+
 
 
 
