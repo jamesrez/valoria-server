@@ -296,14 +296,16 @@ function startSocketIO(){
           });
         }else {
           s3.getObject({Bucket : process.env.S3_BUCKET, Key : `${d.userId}.json`}, function(err, userData) {
-            if(err) console.log("S3 Err: ", err);
+            // if(err) console.log("S3 Err: ", err);
             if(userData){
               userData = JSON.parse(userData.Body.toString());
               saveDataToPath(userData, d.userId, d.path, d.data)
-              s3.upload({Bucket : process.env.S3_BUCKET, Key : `${d.userId}.json`, Body : JSON.stringify(userData, null, 2)}, (err, fileData) => {
-                if (err) console.error(`Upload Error ${err}`);
-              });
+            }else{
+              userData = {};
             }
+            s3.upload({Bucket : process.env.S3_BUCKET, Key : `${d.userId}.json`, Body : JSON.stringify(userData, null, 2)}, (err, fileData) => {
+              if (err) console.error(`Upload Error ${err}`);
+            });
           })
         }
       }
