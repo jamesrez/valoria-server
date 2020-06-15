@@ -20,6 +20,7 @@ body {
   text-align: center;
   font-weight: bold;
   font-size: 36px;
+  margin-bottom: 0px;
 }
 
 .valoriaSecondHeader {
@@ -156,7 +157,42 @@ body {
   height : 380px;
   overflow-y: scroll;
   display: flex;
-  justify-content: column;
+  flex-direction: column;
+}
+
+.chatMsg {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+}
+
+.chatMsgUserAndTime{
+  display: flex;
+  margin-bottom: 4px;
+}
+
+.chatMsgUsername {
+  font-weight: bold;
+  font-size: 15px;
+  cursor: pointer;
+  max-width: 225px;
+  overflow-x: scroll;
+  margin-right: 8px;
+}
+
+.chatMsgUsername:hover {
+  text-decoration: underline;
+}
+
+.chatMsgTime {
+  font-weight: normal;
+  font-size: 14px;
+  color: grey;
+}
+
+.chatMsgText {
+  font-weight: normal;
+  font-size: 14px;
 }
 
 .chatMsgForm {
@@ -222,6 +258,7 @@ body {
 .chatOnlineUser:hover{
   text-decoration: underline;
 }
+
 
 
 

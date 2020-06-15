@@ -80,7 +80,7 @@ async function loadOnlineUsers(){
     const loaded = {};
     Object.keys(peers).forEach((peerId) => {
       const peer = peers[peerId];
-      if(loaded[peer.username]) return;
+      if(loaded[peer.username] || peer.userId === valoria.user.id) return;
       loaded[peer.username] = true;
       let el = document.createElement('div');
       el.className = 'chatOnlineUser hideScrollbar'
@@ -98,11 +98,54 @@ async function connectToPeer(peer){
     currentChat.userId = u.id;
     $('.chatMsgForm').css('display', 'flex');
     $('.chatName').text(u.username);
-    u.get('chat').get('users').get(user.id).on((msgTimes) => {
-      console.log(msgTimes);
-    });
+    $('.chatMsgContainerList').empty();
+    let allMsgs = [];
+    function getMsgsOfUser(data, username){
+      data.on((msgTimes) => {
+        if(msgTimes && typeof msgTimes === 'object'){
+          Object.keys(msgTimes).forEach((time) => {
+            let msg = msgTimes[time];
+            if(msg && typeof msg === 'string'){
+              allMsgs.push({text: msg, username, time});
+
+              loadMessages(allMsgs);
+            }
+          })
+        }
+      });
+    }
+    getMsgsOfUser(u.get('chat').get('users').get(user.id), u.username);
+    getMsgsOfUser(valoria.user.get('chat').get('users').get(u.id), user.username);
   });
 }
+
+function loadMessages(msgs){
+  $('.chatMsgContainerList').empty();
+  msgs.sort((a, b) => a.time - b.time);
+  msgs.forEach((msg) => {
+    let msgEl = document.createElement('div');
+    msgEl.className = 'chatMsg';
+    $('.chatMsgContainerList').append(msgEl);
+    let msgUandT = document.createElement('div');
+    msgUandT.className = 'chatMsgUserAndTime';
+    $(msgEl).append(msgUandT)
+    let msgUsername = document.createElement('div');
+    msgUsername.className = 'chatMsgUsername hideScrollbar';
+    msgUsername.textContent = msg.username;
+    $(msgUandT).append(msgUsername)
+    let msgTime = document.createElement('div');
+    msgTime.className = 'chatMsgTime';
+    msgTime.textContent = moment(Number(msg.time)).calendar();
+    $(msgUandT).append(msgTime)
+    let msgText = document.createElement('div');
+    msgText.className = 'chatMsgText';
+    msgText.textContent = msg.text;
+    $(msgEl).append(msgText);
+  })
+  $('.chatMsgContainerList')[0].scrollTop = $('.chatMsgContainerList')[0].scrollHeight;
+}
+
+
 
 $('.chatMsgInput').on('keyup', (e) => {
   if(e.keyCode === 13){

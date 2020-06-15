@@ -257,40 +257,45 @@ function startSocketIO(){
     //MUST FIX THIS
     function saveDataToPath(data, userId, path, value){
       let thisKey = Object.keys(path)[0];
-      let uniquePathObj = {[thisKey] : null};
-      let uniquePathObjCurrent = uniquePathObj;
-      let uniquePath = userId + JSON.stringify(uniquePathObj);
-      while(path[thisKey] && typeof path[thisKey] === 'object'){
-        if(!data[thisKey] || typeof data[thisKey] !== 'object'){
-          data[thisKey] = {};
-          let keyAfterThis = Object.keys(path[thisKey])[0];
-          let thisValue = JSON.stringify(uniquePathObjCurrent)
-          thisValue = JSON.parse(thisValue)[thisKey] = {[keyAfterThis] : null}
-          uniquePath = userId + JSON.stringify(uniquePathObj);
-          io.to(uniquePath).emit("Get User Data", {data: thisValue, path: uniquePath});
-        }
-        path = path[thisKey];
-        let prevKey = thisKey;
-        thisKey = Object.keys(path)[0];
-        uniquePathObjCurrent[prevKey] = {[thisKey] : null};
-        uniquePathObjCurrent = uniquePathObjCurrent[prevKey];
-        if(path[thisKey]){
-          if(!data[prevKey][thisKey]){
-            data[prevKey][thisKey] = {};
-            let keyAfterThis = Object.keys(path[thisKey])[0];
-            let thisValue = JSON.stringify(uniquePathObjCurrent)
-            thisValue = JSON.parse(thisValue)[thisKey] = {[keyAfterThis] : null}
-            uniquePath = userId + JSON.stringify(uniquePathObj);
-            io.to(uniquePath).emit("Get User Data", {data: thisValue, path: uniquePath});
+      let uniqueObjPath = {}
+      recurseSaveAndSendAccordingly(thisKey, data, path, {}, uniqueObjPath);
+      function recurseSaveAndSendAccordingly(key, data, lPath, lData, lObjPath){    
+        // EXAMPLE DATA {chat : {users : {james : {14783482: "My Messages"}}}}
+        let nextKey = Object.keys(lPath[key])[0]
+        if(lPath[key] && typeof lPath[key] === 'object' && lPath[key][nextKey]){ //IF PATH HAS A KEY
+          if(!data[key]){
+            if(typeof data[key] !== 'object'){//IF THE DATA DOES NOT HAVE THIS KEY, THAT MEANS ITS NEW.
+              data[key] = {};
+            } 
+            Object.assign(lData, data);
+            let uniquePath = userId + JSON.stringify(uniqueObjPath)
+            io.to(uniquePath).emit("Get User Data", {data: lData, path: uniquePath});
           }
+          lData[key] = {};
+          if(lPath && typeof lPath[key] === 'object'){
+            if(!lObjPath || typeof lObjPath !== 'object') lObjPath = {[key] : null};
+            let newKey = Object.keys(lPath[key])[0]
+            lObjPath[key] = {[newKey] : null};
+            recurseSaveAndSendAccordingly(newKey, data[key], lPath[key], lData[key], lObjPath[key]);      
+          }
+        }else{//IF PATH DOES NOT HAVE A KEY THAT MEANS THIS IS WHERE THE NEW VALUE IS ADDED
+          if(!data[key] || typeof data[key] !== 'object'){
+            data[key] = {};
+          }
+          if(!lData[key] || typeof lData[key] !== 'object'){
+            lData[key] = {};
+          }
+          lData[key][nextKey] = value;
+          data[key][nextKey] = value;
+          uniquePath = userId + JSON.stringify(uniqueObjPath)
+          io.to(uniquePath).emit("Get User Data", {data: data[key], path: uniquePath});
+          lPath[key] = null;
+          lObjPath[key] = {[nextKey] : null}
+          uniquePath = userId + JSON.stringify(uniqueObjPath)
+          io.to(uniquePath).emit("Get User Data", {data: value, path: uniquePath});
         }
-        data = data[prevKey];
+        
       }
-      io.to(uniquePath).emit("Get User Data", {data: value, path: uniquePath});
-      if(typeof data !== 'object'){
-        data = {};
-      }
-      data[thisKey] = value;
       return data;
     }
 

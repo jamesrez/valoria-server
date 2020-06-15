@@ -416,6 +416,7 @@
     onData(){
       Object.keys(this.user.sockets).forEach((id) => {
         this.user.sockets[id].on('Get User Data', (d) => {
+          console.log(d.data);
           let vData = this.datas[d.path]
           if(d.data){
             if(typeof d.data === 'object') vData.saveBaseDataToPath(JSON.parse(JSON.stringify(d.data)));
