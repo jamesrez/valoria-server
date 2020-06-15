@@ -416,11 +416,9 @@
     onData(){
       Object.keys(this.user.sockets).forEach((id) => {
         this.user.sockets[id].on('Get User Data', (d) => {
-          console.log(d.data);
-          let vData = this.datas[d.path]
+          let vData = this.datas[d.path];
           if(d.data){
-            if(typeof d.data === 'object') vData.saveBaseDataToPath(JSON.parse(JSON.stringify(d.data)));
-            else vData.saveBaseDataToPath(d.data);
+            vData.saveDataToPath(d.data);
           }
           if(vData.onNew && typeof vData.onNew === 'function'){
             vData.onNew(d.data);
@@ -445,7 +443,7 @@
     }
 
     get(key){
-      return new ValoriaData({path: {[key] : null}, value: this.data[key], user: this});
+      return new ValoriaData({path: `.${key}`, value: this.data[key], user: this});
     }
 
   }
@@ -459,91 +457,35 @@
     }
 
     get(key){
-      let data = {};
-      Object.assign(data, this.user.data);
-      let path = this.path;
-      let thisKey = Object.keys(path)[0];
-      while(path[thisKey] && typeof path[thisKey] === 'object'){
-        if(!data[thisKey] || typeof data[thisKey] !== 'object'){
-          data[thisKey] = {};
-        }
-        path = path[thisKey];
-        let prevKey = thisKey;
-        thisKey = Object.keys(path)[0];
-        if(path[thisKey]){
-          data[prevKey][thisKey] = data[prevKey][thisKey] || {};
-        }
-        data = data[prevKey];
+      let newPath = `${this.path}.${key}`;
+      let uniquePath = this.user.id + newPath;
+      if(!this.user.valoria.datas[uniquePath]){
+        let data = this.user.data;
+        for (var i=0, path=newPath.substr(1).split('.'), len=path.length; i<len; i++){
+          if(!data || typeof data !== 'object') data = {};
+          data = data[path[i]];
+        };
+        this.user.valoria.datas[uniquePath] = new ValoriaData({
+          path: newPath, 
+          value: data, 
+          user: this.user
+        })
       }
-      if(typeof data !== 'object'){
-        data = {};
-      }
-      path[thisKey] = {[key] : null};
-      if(!data[thisKey]){
-        data[thisKey] = {};
-      }
-      data = data[thisKey][key]
-      this.user.valoria.datas[this.user.id + JSON.stringify(this.path)] = new ValoriaData({
-        path: this.path, 
-        value: data, 
-        user: this.user
-      })
-      return this.user.valoria.datas[this.user.id + JSON.stringify(this.path)];
+      return this.user.valoria.datas[uniquePath];
     }
 
-    saveDataToPath(data, path, value){
-      let thisKey = Object.keys(path)[0];
-      while(path[thisKey] && typeof path[thisKey] === 'object'){
-        if(!data[thisKey] || typeof data[thisKey] !== 'object'){
-          data[thisKey] = {};
-        }
-        path = path[thisKey];
-        let prevKey = thisKey;
-        thisKey = Object.keys(path)[0];
-        if(path[thisKey]){
-          data[prevKey][thisKey] = data[prevKey][thisKey] || {};
-        }
-        data = data[prevKey];
-      }
-      if(typeof data !== 'object'){
-        data = {};
-      }
-      data[thisKey] = value;
-      return data;
-    }
-
-    saveBaseDataToPath(value){
+    saveDataToPath(value){
       let data = this.user.data;
       let path = this.path;
-      let thisKey = Object.keys(path)[0];
-      while(path[thisKey] && typeof path[thisKey] === 'object'){
-        if(!data[thisKey] || typeof data[thisKey] !== 'object'){
-          data[thisKey] = {};
-        }
-        path = path[thisKey];
-        let prevKey = thisKey;
-        thisKey = Object.keys(path)[0];
-        if(path[thisKey]){
-          data[prevKey][thisKey] = data[prevKey][thisKey] || {};
-        }
-        data = data[prevKey];
-      }
-
-      if(typeof data !== 'object'){
-        data = {};
-      }
-      if(data[thisKey] && typeof data[thisKey] === 'object' && typeof value === 'object'){
-        Object.assign(value, data[thisKey]);
-        Object.assign(data[thisKey], value);
-      }else{
-        data[thisKey] = value;
-      }
-      return data;
+      for (var i=0, pathArr=path.substr(1).split('.'), len=pathArr.length; i<len; i++){
+        data[pathArr[i]] = (i === len - 1) ?  value : {}
+        data = data[pathArr[i]];
+      };
     }
 
     async set(d){
       this.value = d;
-      this.saveDataToPath(this.user.data, this.path, d);
+      this.saveDataToPath(d);
       Object.keys(this.user.valoria.user.sockets).forEach((id) => {
         this.user.valoria.user.sockets[id].emit("Save User Data", {
           data: d,
@@ -555,6 +497,7 @@
     }
 
     async on(cb){
+
       this.onNew = (d) => {
         if(cb && typeof cb === 'function'){
           cb(d);

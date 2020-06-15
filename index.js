@@ -256,47 +256,18 @@ function startSocketIO(){
 
     //MUST FIX THIS
     function saveDataToPath(data, userId, path, value){
-      let thisKey = Object.keys(path)[0];
-      let uniqueObjPath = {}
-      recurseSaveAndSendAccordingly(thisKey, data, path, {}, uniqueObjPath);
-      function recurseSaveAndSendAccordingly(key, data, lPath, lData, lObjPath){    
-        // EXAMPLE DATA {chat : {users : {james : {14783482: "My Messages"}}}}
-        let nextKey = Object.keys(lPath[key])[0]
-        if(lPath[key] && typeof lPath[key] === 'object' && lPath[key][nextKey]){ //IF PATH HAS A KEY
-          if(!data[key]){
-            if(typeof data[key] !== 'object'){//IF THE DATA DOES NOT HAVE THIS KEY, THAT MEANS ITS NEW.
-              data[key] = {};
-            } 
-            Object.assign(lData, data);
-            let uniquePath = userId + JSON.stringify(uniqueObjPath)
-            io.to(uniquePath).emit("Get User Data", {data: lData, path: uniquePath});
-          }
-          lData[key] = {};
-          if(lPath && typeof lPath[key] === 'object'){
-            if(!lObjPath || typeof lObjPath !== 'object') lObjPath = {[key] : null};
-            let newKey = Object.keys(lPath[key])[0]
-            lObjPath[key] = {[newKey] : null};
-            recurseSaveAndSendAccordingly(newKey, data[key], lPath[key], lData[key], lObjPath[key]);      
-          }
-        }else{//IF PATH DOES NOT HAVE A KEY THAT MEANS THIS IS WHERE THE NEW VALUE IS ADDED
-          if(!data[key] || typeof data[key] !== 'object'){
-            data[key] = {};
-          }
-          if(!lData[key] || typeof lData[key] !== 'object'){
-            lData[key] = {};
-          }
-          lData[key][nextKey] = value;
-          data[key][nextKey] = value;
-          uniquePath = userId + JSON.stringify(uniqueObjPath)
-          io.to(uniquePath).emit("Get User Data", {data: data[key], path: uniquePath});
-          lPath[key] = null;
-          lObjPath[key] = {[nextKey] : null}
-          uniquePath = userId + JSON.stringify(uniqueObjPath)
-          io.to(uniquePath).emit("Get User Data", {data: value, path: uniquePath});
+      let uniquePath = userId;
+      for (var i=0, pathArr=path.substr(1).split('.'), len=pathArr.length; i<len; i++){
+        if(i === len - 1){
+          data[pathArr[i]] = value;
+          io.to(uniquePath).emit("Get User Data", {data, path: uniquePath});
+        }else{
+          data[pathArr[i]] = data[pathArr[i]] || {};
+          io.to(uniquePath).emit("Get User Data", {data, path: uniquePath});
+          data = data[pathArr[i]];
         }
-        
-      }
-      return data;
+        uniquePath += "." + pathArr[i];
+      };
     }
 
     socket.on("Save User Data", async (d) => {
@@ -327,37 +298,17 @@ function startSocketIO(){
       }
     })
 
-    function getDataFromPath(d, path){
-      let thisKey = Object.keys(path)[0];
-      while(path[thisKey] && typeof path[thisKey] === 'object'){
-        if(!d[thisKey] || typeof d[thisKey] !== 'object'){
-          d[thisKey] = {};
-        }
-        path = path[thisKey];
-        let prevKey = thisKey;
-        thisKey = Object.keys(path)[0];
-        if(path[thisKey]){
-          d[prevKey][thisKey] = d[prevKey][thisKey] || {};
-        }
-        d = d[prevKey];
-      }
-      if(typeof d !== 'object'){
-        d = {};
-      }
-      d = d[thisKey];
-      if(d && typeof d === 'object'){
-        Object.keys(d).forEach((key) => {
-          if(d[key] && typeof d[key] === 'object'){
-            d[key] = {};
-          }
-        })
-      }
-      return d;
+    function getDataFromPath(data, path){
+      for (var i=0, path=path.substr(1).split('.'), len=path.length; i<len; i++){
+        if(!data || typeof data !== 'object') data = {};
+        data = data[path[i]];
+      };
+      return data;
     }
 
     socket.on("Get User Data", async(d) => {
       if(data.users[d.username] && data.users[d.username][d.userId]){
-        const uniquePath = d.userId + JSON.stringify(d.path)
+        const uniquePath = d.userId + d.path;
         socket.join(uniquePath);
         if(!process.env.AWS_ACCESS_KEY_ID){
           let userData = "{}";
@@ -374,7 +325,7 @@ function startSocketIO(){
             if(fileData){
               fileData = fileData.Body.toString();
             }
-            socket.emit("Get User Data", {data: fileData, path: uniquePath})
+            socket.emit("Get User Data", {data: JSON.parse(fileData), path: uniquePath})
           })
         }
       }

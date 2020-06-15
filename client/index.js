@@ -99,15 +99,17 @@ async function connectToPeer(peer){
     $('.chatMsgForm').css('display', 'flex');
     $('.chatName').text(u.username);
     $('.chatMsgContainerList').empty();
+    let loaded = {};
     let allMsgs = [];
     function getMsgsOfUser(data, username){
       data.on((msgTimes) => {
         if(msgTimes && typeof msgTimes === 'object'){
           Object.keys(msgTimes).forEach((time) => {
+            if(loaded[username + time]) return;
             let msg = msgTimes[time];
             if(msg && typeof msg === 'string'){
+              loaded[username + time] = true;
               allMsgs.push({text: msg, username, time});
-
               loadMessages(allMsgs);
             }
           })
