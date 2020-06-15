@@ -443,7 +443,13 @@
     }
 
     get(key){
-      return new ValoriaData({path: `.${key}`, value: this.data[key], user: this});
+      let uniquePath = this.id + "." + key;
+      if(!this.valoria.datas[uniquePath]){
+        this.valoria.datas[uniquePath] = new ValoriaData({
+          path: `.${key}`, value: this.data[key], user: this
+        })
+      }
+      return this.valoria.datas[uniquePath];
     }
 
   }
@@ -459,15 +465,20 @@
     get(key){
       let newPath = `${this.path}.${key}`;
       let uniquePath = this.user.id + newPath;
+      let value;
       if(!this.user.valoria.datas[uniquePath]){
         let data = this.user.data;
         for (var i=0, path=newPath.substr(1).split('.'), len=path.length; i<len; i++){
           if(!data || typeof data !== 'object') data = {};
           data = data[path[i]];
+          value = data;
         };
+        if(data && typeof data === 'object' && Object.keys(data).length === 0){
+          value = null;
+        }
         this.user.valoria.datas[uniquePath] = new ValoriaData({
           path: newPath, 
-          value: data, 
+          value: value, 
           user: this.user
         })
       }
@@ -499,6 +510,7 @@
     async on(cb){
 
       this.onNew = (d) => {
+        this.value = d;
         if(cb && typeof cb === 'function'){
           cb(d);
         }

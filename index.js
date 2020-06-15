@@ -263,7 +263,18 @@ function startSocketIO(){
           io.to(uniquePath).emit("Get User Data", {data, path: uniquePath});
         }else{
           data[pathArr[i]] = data[pathArr[i]] || {};
-          io.to(uniquePath).emit("Get User Data", {data, path: uniquePath});
+          if(data && typeof data === 'object'){
+            let data2Send = {};
+            Object.assign(data2Send, data);
+            Object.keys(data2Send).forEach((key) => {
+              if(data2Send[key] && typeof data2Send[key] === 'object'){
+                data2Send[key] = {};
+              }
+            })
+            io.to(uniquePath).emit("Get User Data", {data: data2Send, path: uniquePath});
+          }else{
+            io.to(uniquePath).emit("Get User Data", {data, path: uniquePath});
+          }
           data = data[pathArr[i]];
         }
         uniquePath += "." + pathArr[i];
@@ -303,7 +314,18 @@ function startSocketIO(){
         if(!data || typeof data !== 'object') data = {};
         data = data[path[i]];
       };
-      return data;
+      if(data && typeof data === 'object'){
+        let data2Return = {};
+        Object.assign(data2Return, data);
+        Object.keys(data2Return).forEach((key) => {
+          if(data2Return[key] && typeof data2Return[key] === 'object'){
+            data2Return[key] = {};
+          }
+        })
+        return data2Return;
+      }else{
+        return data;
+      }
     }
 
     socket.on("Get User Data", async(d) => {
