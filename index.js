@@ -144,7 +144,6 @@ function startSocketIO(){
             username : d.username,
             userId : d.userId,
             socket : socket.id,
-            peerId : d.peerId
           });
         })
         saveData(data, () => {
@@ -206,7 +205,6 @@ function startSocketIO(){
               username : d.username,
               userId : d.userId,
               socket : socket.id,
-              peerId : d.peerId
             });
           })
           saveData(data, () => {
@@ -234,7 +232,7 @@ function startSocketIO(){
             delete data.dimensions[dimension].sockets[socket.id];
           }
           Object.keys(data.dimensions[dimension].sockets).forEach((socketId) => {
-            io.to(socketId).emit("Peer Has Left Dimension", peerId);
+            io.to(socketId).emit("Peer Has Left Dimension", userId);
           })
         }
         delete data.peers[peerId];
@@ -246,9 +244,9 @@ function startSocketIO(){
     socket.on("Get Peers in Dimension", (dimId) => {
       if(!dimId) dimId = 'valoria';
       if(data.online[socket.id] && data.dimensions[dimId]){
-        socket.emit("Get Peers in Dimension", data.dimensions[dimId].peers);
+        socket.emit("Get Peers in Dimension", data.dimensions[dimId].sockets);
       }else if(!data.dimensions[dimId]){
-        data.dimensions[dimId] = {peers : {}};
+        data.dimensions[dimId] = {sockets: {}};
         saveData(data);
       }
     })
@@ -354,6 +352,15 @@ function startSocketIO(){
         }
       }
     })
+
+    socket.on("Signal WebRTC Info to User", (d) => {
+      if(data.users[d.toUsername] && data.users[d.toUsername][d.toUserId]){
+        let sockets = data.users[d.toUsername][d.toUserId].sockets;
+        Object.keys(sockets).forEach((id) => {
+          io.to(id).emit('Got WebRTC Info from User', d);
+        })
+      }
+    });
 
   })
 };

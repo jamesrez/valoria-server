@@ -1,53 +1,47 @@
 {
   "online": {
-    "xdakxbqC1uVPXT_QAAAD": {
+    "5gxRY0MIaKbIDVrAAAAE": {
       "username": "james",
-      "peerId": "e97f364d-8290-4a03-a9c1-1b68b8827dd8",
       "userId": "9a9808a45134bc6bcad2c3d01dcef39c121da7977c5051490ea726dd683e3621",
       "dimension": "valoria"
     },
-    "t6V-MPkqVw7Scbn0AAAE": {
+    "hiMZgz4KkmpwVwCCAAAF": {
       "username": "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c",
-      "peerId": "a6ab51a9-ebaf-4184-97b4-f7b7a54779c5",
       "userId": "a307ca8db4bcc507378838578b6c42006c52339f1ec7e50d2e61bb2360fd8953",
       "dimension": "valoria"
     }
   },
   "users": {
-    "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c": {
-      "a307ca8db4bcc507378838578b6c42006c52339f1ec7e50d2e61bb2360fd8953": {
-        "username": "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c",
-        "id": "a307ca8db4bcc507378838578b6c42006c52339f1ec7e50d2e61bb2360fd8953",
-        "peers": {
-          "a6ab51a9-ebaf-4184-97b4-f7b7a54779c5": "a6ab51a9-ebaf-4184-97b4-f7b7a54779c5"
-        },
-        "sockets": {
-          "t6V-MPkqVw7Scbn0AAAE": "t6V-MPkqVw7Scbn0AAAE"
-        },
-        "name": "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c",
-        "eKey": "{\"val\":\"data:application/octet-binary;base64,MKhpqElsxIzBumPmRXfmuwhoiOUBzdoH27/nMKb2fJ0bD+m4QPZeJw==\",\"salt\":{\"0\":13,\"1\":57,\"2\":222,\"3\":168,\"4\":50,\"5\":6,\"6\":97,\"7\":92,\"8\":31,\"9\":143,\"10\":247,\"11\":168,\"12\":163,\"13\":52,\"14\":28,\"15\":158}}",
-        "keyPair": {
-          "publicKey": "{\"crv\":\"P-384\",\"ext\":true,\"key_ops\":[\"verify\"],\"kty\":\"EC\",\"x\":\"z8hAX8kG0tCx3S-OR18sPRmiNSiYF2wkA8sYrQAiTJZXqH72AujIde_4NAsuq6rU\",\"y\":\"6Q3cgY-cNNMd4E3F4SXcNwNRyPOXsF1G6taiF6xDlddJ4B0iy9Aml38jkciiQQc0\"}",
-          "privateKey": "{\"wrapped\":\"data:application/octet-binary;base64,6PPLwyKgKvy/GTLcqERci4YHoSr0q0zz8GuQAod10yuVOhwzkDbLkJynGai6G2fcs9IyVXanbMrIlOUEd1HWJU52gwhFoWbRHqb3ZuKqMGYqmbPYL+qhgE77zwAXd9w90NUJYzk8nt2yVPDmDHPD/pyk6F4b9/8t4GDPfjhVgFWy7ad9NYhzFO3qMV1GwlfhoCtnZJI1fKprc5Z4fmRe7uZVllfrCq0VbuOSmd6Pb0Zxu98jzqpo0Jm6V2ar9G/9aQXQca0XRtpd7SrrfPB7B9xfa/dC9vdu5RKcjHL4VRhVuuisA5AOD3mFqsb17JrOq43RF1VqHtjwBBhYOn8WI6/yOW9Lq34wIuDYTC4z4iSJ5EA92tl7Ng1GGfVM\",\"salt\":{\"0\":13,\"1\":57,\"2\":222,\"3\":168,\"4\":50,\"5\":6,\"6\":97,\"7\":92,\"8\":31,\"9\":143,\"10\":247,\"11\":168,\"12\":163,\"13\":52,\"14\":28,\"15\":158},\"iv\":{\"0\":97,\"1\":45,\"2\":158,\"3\":177,\"4\":76,\"5\":252,\"6\":251,\"7\":164,\"8\":196,\"9\":97,\"10\":96,\"11\":50}}"
-        },
-        "dimension": "valoria"
-      }
-    },
     "james": {
       "9a9808a45134bc6bcad2c3d01dcef39c121da7977c5051490ea726dd683e3621": {
         "username": "james",
         "id": "9a9808a45134bc6bcad2c3d01dcef39c121da7977c5051490ea726dd683e3621",
-        "peers": {
-          "e97f364d-8290-4a03-a9c1-1b68b8827dd8": "e97f364d-8290-4a03-a9c1-1b68b8827dd8"
-        },
+        "peers": {},
         "sockets": {
-          "xdakxbqC1uVPXT_QAAAD": "xdakxbqC1uVPXT_QAAAD"
+          "5gxRY0MIaKbIDVrAAAAE": "5gxRY0MIaKbIDVrAAAAE"
         },
         "name": "james",
-        "eKey": "{\"val\":\"data:application/octet-binary;base64,IvwdYXXFkU8m4V/XvoWBDrF0KLDaIvs/YR+kDdcCKJWHkI7PXlxH9Q==\",\"salt\":{\"0\":161,\"1\":237,\"2\":86,\"3\":178,\"4\":211,\"5\":121,\"6\":140,\"7\":62,\"8\":133,\"9\":194,\"10\":196,\"11\":79,\"12\":192,\"13\":213,\"14\":142,\"15\":9}}",
+        "eKey": "{\"val\":\"data:application/octet-binary;base64,9EeY2Pu8yjwoGAI84oMJ7apS/RdYHSzFefU+EL8Seltl454SPMSmXA==\",\"salt\":{\"0\":254,\"1\":225,\"2\":194,\"3\":228,\"4\":112,\"5\":192,\"6\":182,\"7\":56,\"8\":233,\"9\":133,\"10\":220,\"11\":56,\"12\":55,\"13\":212,\"14\":122,\"15\":23}}",
         "keyPair": {
-          "publicKey": "{\"crv\":\"P-384\",\"ext\":true,\"key_ops\":[\"verify\"],\"kty\":\"EC\",\"x\":\"gJ_0l3a8g3QqmIEj3Ys20uGN7mywb-qGOA7K0K2XoDi99JajGtUOIbPBZVKTissC\",\"y\":\"jCv4wPL82EN9pz2mcPPYhkHpTNyB0GSDp0xv9Kjv8rmy7W5MFu-g9io5aC7Gd4IP\"}",
-          "privateKey": "{\"wrapped\":\"data:application/octet-binary;base64,a2G4P0tHMZ+21Ug1aB6NSShmPB0mU42/tvPPEh8eN1yv3iYMUENDcckAh6Uv4KRJXqyB7dQr5cpz6HfJP0l5rbWRJjEkRfSFRTqgsFvnfyQOYInCdRFdX8jroIKeYciWgGu1NrV+pRV34mDdZyN6NBsa4b69RGpvZJ+C0LIUPGFmasMxT2Y6JxWiJFBSr+dKgHPgnSwx2H9EZ5qFaJKgo6axJ0AoBrl63ZjJ9mw/8nRTTeCTeCupehAa3f3G+mwdvWOphmxsaMYHQci/M4dexrDLGscnRgRooKfY1nf2Dvu9xmVzpJFpzXRel8MyTmX2P2qR1hB/NWc/mK2org3jEOfphvVK1ZH7Jrjcn+JhrUBxuK49extnP+pjTSej\",\"salt\":{\"0\":161,\"1\":237,\"2\":86,\"3\":178,\"4\":211,\"5\":121,\"6\":140,\"7\":62,\"8\":133,\"9\":194,\"10\":196,\"11\":79,\"12\":192,\"13\":213,\"14\":142,\"15\":9},\"iv\":{\"0\":130,\"1\":217,\"2\":62,\"3\":232,\"4\":175,\"5\":15,\"6\":98,\"7\":107,\"8\":10,\"9\":100,\"10\":255,\"11\":251}}"
+          "publicKey": "{\"crv\":\"P-384\",\"ext\":true,\"key_ops\":[\"verify\"],\"kty\":\"EC\",\"x\":\"UjrvF_rV9R13cquJX23xNdSh9W5FWXg8bJYJg9yh_4Mgxx33BvqO16lD2auh5uJP\",\"y\":\"PAYli-T55E7ljt6vteEJLhWubmj3tderfo-cqtR-_ftPfZhVH7qI_vQM2yQOZt7D\"}",
+          "privateKey": "{\"wrapped\":\"data:application/octet-binary;base64,/8miOY3SrWsETuHCwPo7IrvTUbElcAqCxCDOpeTFMjYsWChtreQVxHATN8YEJhSHznqS8sCON2CWf1eV4MsK8ipwywle0NiAbGifbwTX4vG3x0IXL5gaTsKyqqvkP2P8PAWq2oFFZ+5zxN1Jnm5CxrsPsCUC9jWhKykgS4ijSnfZd23Zy/0c36OomAdJipL9ZxmYMC973aql6sOCVB5pgY30LUFAQSf/INOiVL++jsKQ5rmxy2g+P+iTo21y+RAk1RnSoe2VFUA7uTFgq6ibGRzTC+D8/YHdJEoah98/53Bn3ZBT6F5UuOUb7O8tkewCEgVXFaZMMSd4pYLRiCe9H5Qzs7i7RwB1zwZx+0SQgifILBZ0VXAPtnsy/jvt\",\"salt\":{\"0\":254,\"1\":225,\"2\":194,\"3\":228,\"4\":112,\"5\":192,\"6\":182,\"7\":56,\"8\":233,\"9\":133,\"10\":220,\"11\":56,\"12\":55,\"13\":212,\"14\":122,\"15\":23},\"iv\":{\"0\":4,\"1\":152,\"2\":42,\"3\":11,\"4\":169,\"5\":37,\"6\":204,\"7\":220,\"8\":192,\"9\":232,\"10\":245,\"11\":57}}"
+        },
+        "dimension": "valoria"
+      }
+    },
+    "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c": {
+      "a307ca8db4bcc507378838578b6c42006c52339f1ec7e50d2e61bb2360fd8953": {
+        "username": "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c",
+        "id": "a307ca8db4bcc507378838578b6c42006c52339f1ec7e50d2e61bb2360fd8953",
+        "peers": {},
+        "sockets": {
+          "hiMZgz4KkmpwVwCCAAAF": "hiMZgz4KkmpwVwCCAAAF"
+        },
+        "name": "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c",
+        "eKey": "{\"val\":\"data:application/octet-binary;base64,cYKObA2iehgxvniWYvLeGoFKzADGB5K5suRFNLfbxB7kklgGJrZ9bg==\",\"salt\":{\"0\":236,\"1\":56,\"2\":76,\"3\":121,\"4\":109,\"5\":149,\"6\":74,\"7\":86,\"8\":243,\"9\":207,\"10\":205,\"11\":20,\"12\":153,\"13\":250,\"14\":182,\"15\":3}}",
+        "keyPair": {
+          "publicKey": "{\"crv\":\"P-384\",\"ext\":true,\"key_ops\":[\"verify\"],\"kty\":\"EC\",\"x\":\"tIjpB8HUQvmXphGwAL90rOKbd-xxxp5sLoNw_Ps2sxyTvZrg5RdizArxt2_Vru5G\",\"y\":\"jBhMnODuaN-gaE6_Sy2Y4a6p8Q1kc47Csa0yd5oHEMxE6vD2WgHKKVyNWXtSSgYv\"}",
+          "privateKey": "{\"wrapped\":\"data:application/octet-binary;base64,L44PfffOQbGSdJz+8pWZIAkXtmJxAfplhjtzABacoYzv6MJwM85bYDNzzQ3hMRDQQSA6K10T96MGRJUbLVJjKmJLsqO/dFrfeeInHt5Ad22Tg8ar64iCmWAdAZYUs68iUCEgtxQU5LhMsoQ0kSXxamMnaNLc3IKFJfmoLxVtG+LaP8naRLTzs6pJL/rHn8vhEIE/IMEMH/jmh/thD6d4HyXZojrM3T4A2obm/3bGXUXh8/GTTrhYGrP0jDhS45sCisIIKALlHYcauWgQNSGetsMsRi2Q6PB2xC05UzjOuX+eyNWDoFPp15cYywIm0Ke7qe8d5QSra9jHedg/mu4bOtBCqYoWvnH5ATI6Ih5YrXXPoLGoOFGxlCwqEzeA\",\"salt\":{\"0\":236,\"1\":56,\"2\":76,\"3\":121,\"4\":109,\"5\":149,\"6\":74,\"7\":86,\"8\":243,\"9\":207,\"10\":205,\"11\":20,\"12\":153,\"13\":250,\"14\":182,\"15\":3},\"iv\":{\"0\":89,\"1\":254,\"2\":126,\"3\":109,\"4\":114,\"5\":101,\"6\":239,\"7\":126,\"8\":88,\"9\":129,\"10\":250,\"11\":196}}"
         },
         "dimension": "valoria"
       }
@@ -57,26 +51,67 @@
   "dimensions": {
     "valoria": {
       "peers": {
-        "e97f364d-8290-4a03-a9c1-1b68b8827dd8": {
-          "username": "james",
-          "userId": "9a9808a45134bc6bcad2c3d01dcef39c121da7977c5051490ea726dd683e3621",
-          "socket": "xdakxbqC1uVPXT_QAAAD"
-        },
-        "a6ab51a9-ebaf-4184-97b4-f7b7a54779c5": {
+        "undefined": {
           "username": "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c",
           "userId": "a307ca8db4bcc507378838578b6c42006c52339f1ec7e50d2e61bb2360fd8953",
-          "socket": "t6V-MPkqVw7Scbn0AAAE"
+          "socket": "hiMZgz4KkmpwVwCCAAAF"
         }
       },
       "sockets": {
-        "xdakxbqC1uVPXT_QAAAD": {
+        "H_K_RlpHnvDVKL9ZAAAE": {
+          "username": "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c",
+          "userId": "a307ca8db4bcc507378838578b6c42006c52339f1ec7e50d2e61bb2360fd8953"
+        },
+        "6PNxLCZKOeEOkKVoAAAG": {
           "username": "james",
-          "peerId": "e97f364d-8290-4a03-a9c1-1b68b8827dd8",
           "userId": "9a9808a45134bc6bcad2c3d01dcef39c121da7977c5051490ea726dd683e3621"
         },
-        "t6V-MPkqVw7Scbn0AAAE": {
+        "qWQHc2QejcuS97gOAAAC": {
           "username": "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c",
-          "peerId": "a6ab51a9-ebaf-4184-97b4-f7b7a54779c5",
+          "userId": "a307ca8db4bcc507378838578b6c42006c52339f1ec7e50d2e61bb2360fd8953"
+        },
+        "y9Sbg77dngmkvpYbAAAD": {
+          "username": "james",
+          "userId": "9a9808a45134bc6bcad2c3d01dcef39c121da7977c5051490ea726dd683e3621"
+        },
+        "QcytQss_1Q-_tF11AAAE": {
+          "username": "james",
+          "userId": "9a9808a45134bc6bcad2c3d01dcef39c121da7977c5051490ea726dd683e3621"
+        },
+        "ZkrLlkLS80AA78a9AAAF": {
+          "username": "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c",
+          "userId": "a307ca8db4bcc507378838578b6c42006c52339f1ec7e50d2e61bb2360fd8953"
+        },
+        "Mi7BU7YlUh1DMKfqAAAC": {
+          "username": "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c",
+          "userId": "a307ca8db4bcc507378838578b6c42006c52339f1ec7e50d2e61bb2360fd8953"
+        },
+        "wFcIp9gEx-Zi3bwkAAAD": {
+          "username": "james",
+          "userId": "9a9808a45134bc6bcad2c3d01dcef39c121da7977c5051490ea726dd683e3621"
+        },
+        "SdMer-wXleE3uFu9AAAB": {
+          "username": "james",
+          "userId": "9a9808a45134bc6bcad2c3d01dcef39c121da7977c5051490ea726dd683e3621"
+        },
+        "_5EEuhAy-SRmDopFAAAC": {
+          "username": "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c",
+          "userId": "a307ca8db4bcc507378838578b6c42006c52339f1ec7e50d2e61bb2360fd8953"
+        },
+        "NbewWpxDHG9bLl1eAAAA": {
+          "username": "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c",
+          "userId": "a307ca8db4bcc507378838578b6c42006c52339f1ec7e50d2e61bb2360fd8953"
+        },
+        "ErlknZBSEgoLby3KAAAD": {
+          "username": "james",
+          "userId": "9a9808a45134bc6bcad2c3d01dcef39c121da7977c5051490ea726dd683e3621"
+        },
+        "5gxRY0MIaKbIDVrAAAAE": {
+          "username": "james",
+          "userId": "9a9808a45134bc6bcad2c3d01dcef39c121da7977c5051490ea726dd683e3621"
+        },
+        "hiMZgz4KkmpwVwCCAAAF": {
+          "username": "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c",
           "userId": "a307ca8db4bcc507378838578b6c42006c52339f1ec7e50d2e61bb2360fd8953"
         }
       }
