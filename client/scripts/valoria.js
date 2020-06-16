@@ -333,9 +333,39 @@ class Valoria {
   //WEBRTC STUFF
   createPeerConnection() {
     try {
-      this.pc = new RTCPeerConnection({
-        iceServers: [{urls: "stun:stun.1.google.com:19302"}]
-      });
+      this.pc = new RTCPeerConnection([{
+        iceServers: {urls: [
+          'stun.l.google.com:19302',
+          'stun1.l.google.com:19302',
+          'stun2.l.google.com:19302',
+          'stun3.l.google.com:19302',
+          'stun4.l.google.com:19302',
+          'stun01.sipphone.com',
+          'stun.ekiga.net',
+          'stun.fwdnet.net',
+          'stun.ideasip.com',
+          'stun.iptel.org',
+          'stun.rixtelecom.se',
+          'stun.schlund.de',
+          'stunserver.org',
+          'stun.softjoys.com',
+          'stun.voiparound.com',
+          'stun.voipbuster.com',
+          'stun.voipstunt.com',
+          'stun.voxgratia.org',
+          'stun.xten.com',
+          'stun01.sipphone.com',
+          'stun.fwdnet.net',
+          's1.taraba.net 203.183.172.196:3478',
+          's2.taraba.net 203.183.172.196:3478',
+          's1.voipstation.jp 113.32.111.126:3478',
+          's2.voipstation.jp 113.32.111.127:3478',
+          'numb.viagenie.ca',
+          'stun.stunprotocol.prg',
+          'stun.counterpath.com',
+          'stun.services.mozilla.com'
+        ]}
+      }]);
       this.pc.valoria = this;
       this.pc.onicecandidate = this.handleIceCandidate;
       this.pc.onaddstream = this.handleRemoteStreamAdded;
@@ -350,7 +380,9 @@ class Valoria {
             sdpMLineIndex: d.msg.label,
             candidate: d.msg.candidate
           });
-          this.pc.addIceCandidate(candidate);
+          console.log(candidate);
+          this.pc.addIceCandidate(candidate).then(() => {
+          }).catch((e) => {console.log(e)});
         }
       })
     } catch (e) {
@@ -421,10 +453,10 @@ class Valoria {
     }
     let thisPc = this.pc;
     this.active[d.fromUserId] = {userId: d.fromUserId, username: d.fromUsername};
-    myStream.getTracks().forEach(function(track) {
-      thisPc.addTrack(track, myStream);
-    });
     this.pc.setRemoteDescription(d.msg).then(() => {
+      myStream.getTracks().forEach(function(track) {
+        thisPc.addTrack(track, myStream);
+      });
       this.pc.createAnswer().then((desc) => {
         this.setLocalAndSendMessage(d.fromUserId, desc);
       }).catch((err) => {

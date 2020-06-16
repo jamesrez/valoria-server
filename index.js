@@ -4,7 +4,7 @@ const app = express();
 const server = require('http').Server(app);
 const io = require('socket.io')(server);
 const bodyParser = require('body-parser');
-const { Crypto } = require("node-webcrypto-ossl");
+const { Crypto } = require("@peculiar/webcrypto");
 const crypto = new Crypto();
 const util = require('util');
 require('dotenv').config();
