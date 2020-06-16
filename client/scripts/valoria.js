@@ -223,7 +223,8 @@
         host: peerHost,
         path: '/peerjs/valoria',
         debug: 2,
-        secure: true
+        secure: true,
+        serialization: 'json'
       });
       this.dimension = opts.dimension || "valoria";
       this.username;
