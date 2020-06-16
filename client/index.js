@@ -101,12 +101,10 @@ async function connectToPeer(peer){
     $('.chatVideoBtn').css('display', 'flex');
     $('.chatVideoBtn').on('click', () => {
       navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(function(myStream) {
-        console.log(myStream.getVideoTracks());
         $('.chatUserVideo')[0].srcObject = myStream;
         valoria.call(peer.userId, myStream, (theirStream) => {
-          $('.chatPeerVideo')[0].srcObject = theirStream;
-          console.log(theirStream.getVideoTracks())
-          console.log($('.chatPeerVideo')[0])
+          let video = $('.chatPeerVideo')[0]
+          video.srcObject = theirStream;
         });
       })
     })
@@ -114,10 +112,8 @@ async function connectToPeer(peer){
       navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(function(myStream) {
         $('.chatUserVideo')[0].srcObject = myStream;
         valoria.answer(d, myStream, (theirStream) => {
-          console.log(myStream.getVideoTracks());
-          console.log(theirStream.getVideoTracks())
-          $('.chatPeerVideo')[0].srcObject = theirStream;
-          console.log($('.chatPeerVideo')[0])
+          let video = $('.chatPeerVideo')[0]
+          video.srcObject = theirStream;
         });
       })
     })

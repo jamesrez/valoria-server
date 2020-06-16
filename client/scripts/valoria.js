@@ -333,17 +333,18 @@ class Valoria {
   //WEBRTC STUFF
   createPeerConnection() {
     try {
-      this.pc = new RTCPeerConnection(null);
+      this.pc = new RTCPeerConnection({
+        iceServers: [{urls: "stun:stun.1.google.com:19302"}]
+      });
       this.pc.valoria = this;
       this.pc.onicecandidate = this.handleIceCandidate;
       this.pc.onaddstream = this.handleRemoteStreamAdded;
       this.pc.onremovestream = console.log;
-      this.socket.on('Got WebRTC Info from User', (d) => {
+      this.socket.on('Got WebRTC Info from User', async (d) => {
         if (d.msg.type === 'offer') {
           this.onCallIncoming(d);
         } else if (d.msg.type === 'answer') {
-          this.pc.setRemoteDescription(new RTCSessionDescription(d.msg));
-          this.active[d.fromUserId] = {userId: d.fromUserId, username: d.fromUsername};
+          await this.pc.setRemoteDescription(d.msg);
         } else if (d.msg.type === 'candidate') {
           var candidate = new RTCIceCandidate({
             sdpMLineIndex: d.msg.label,
@@ -352,7 +353,6 @@ class Valoria {
           this.pc.addIceCandidate(candidate);
         }
       })
-      console.log('Created RTCPeerConnnection');
     } catch (e) {
       console.log('Failed to create PeerConnection, exception: ' + e.message);
       alert('Cannot create RTCPeerConnection object.');
@@ -362,11 +362,11 @@ class Valoria {
 
   handleIceCandidate(event) {
     if (event.candidate) {
-      if(this.active && typeof this.active === 'object'){
-        Object.keys(this.active).forEach((id) => {
-          socket.emit("Signal WebRTC Info to User", {
-            toUsername: this.active[id].username,
-            toUserId: this.active[id].userId,
+      if(this.valoria.active && typeof this.valoria.active === 'object'){
+        Object.keys(this.valoria.active).forEach((id) => {
+          this.valoria.socket.emit("Signal WebRTC Info to User", {
+            toUsername: this.valoria.active[id].username,
+            toUserId: this.valoria.active[id].userId,
             msg: {
               type: 'candidate',
               label: event.candidate.sdpMLineIndex,
@@ -377,15 +377,11 @@ class Valoria {
         })
       }
     } else {
-      console.log('End of candidates.');
     }
   }
 
   setLocalAndSendMessage(userId, sessionDescription) {
     this.pc.setLocalDescription(sessionDescription);
-    // console.log('setLocalAndSendMessage sending message', sessionDescription);
-    console.log(this.peers);
-    console.log(userId);
     this.socket.emit("Signal WebRTC Info to User", {
       fromUsername: this.user.username,
       fromUserId: this.user.id,
@@ -396,7 +392,6 @@ class Valoria {
   }
 
   handleRemoteStreamAdded(event) {
-    console.log(this)
     this.valoria.onCallAnswered(event.stream);
   }
 
@@ -406,8 +401,11 @@ class Valoria {
         cb(stream)
       }
     }
-    this.pc.addStream(myStream);
-    console.log(userId)
+    let thisPc = this.pc;
+    myStream.getTracks().forEach(function(track) {
+      thisPc.addTrack(track, myStream);
+    });
+    this.active[userId] = {userId: userId, username: this.peers[userId].username};
     this.pc.createOffer().then((desc) => {
       this.setLocalAndSendMessage(userId, desc);
     }).catch((err) => {
@@ -421,14 +419,18 @@ class Valoria {
         cb(stream);
       }
     }
-    this.pc.addStream(myStream)
-    this.pc.setRemoteDescription(new RTCSessionDescription(d.msg));
-    this.pc.createAnswer().then((desc) => {
-      this.setLocalAndSendMessage(d.fromUserId, desc);
-    }).catch((err) => {
-      console.log(err);
-    })
+    let thisPc = this.pc;
     this.active[d.fromUserId] = {userId: d.fromUserId, username: d.fromUsername};
+    myStream.getTracks().forEach(function(track) {
+      thisPc.addTrack(track, myStream);
+    });
+    this.pc.setRemoteDescription(d.msg).then(() => {
+      this.pc.createAnswer().then((desc) => {
+        this.setLocalAndSendMessage(d.fromUserId, desc);
+      }).catch((err) => {
+        console.log(err);
+      })
+    });
   }
 
   onCall(cb){
