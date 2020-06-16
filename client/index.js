@@ -80,6 +80,7 @@ async function loadOnlineUsers(){
     const loaded = {};
     Object.keys(peers).forEach((peerId) => {
       const peer = peers[peerId];
+      peers[peerId].peerId = peerId;
       if(loaded[peer.username] || peer.userId === valoria.user.id) return;
       loaded[peer.username] = true;
       let el = document.createElement('div');
@@ -93,10 +94,28 @@ async function loadOnlineUsers(){
 
 async function connectToPeer(peer){
   valoria.getUser({userId: peer.userId, username: peer.username}, (u) => {
-    window.peer = u;
+    window.thisPeer = u;
     delete currentChat.channel;
     currentChat.userId = u.id;
     $('.chatMsgForm').css('display', 'flex');
+    $('.chatVideoBtn').css('display', 'flex');
+    $('.chatVideoBtn').on('click', () => {
+      navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(function(myStream) {
+        $('.chatUserVideo')[0].srcObject = myStream;
+        valoria.call(peer.peerId, myStream, (theirStream) => {
+          $('.chatPeerVideo')[0].srcObject = theirStream;
+        });
+      })
+    })
+    valoria.onCall((callId) => {
+      navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(function(myStream) {
+        $('.chatUserVideo')[0].srcObject = myStream;
+        valoria.answerCall(callId, myStream, (theirStream) => {
+          $('.chatPeerVideo')[0].srcObject = theirStream;
+        });
+      })
+    })
+    let thisPeerId = u.peers
     $('.chatName').text(u.username);
     $('.chatMsgContainerList').empty();
     let loaded = {};

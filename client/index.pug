@@ -28,12 +28,16 @@ body
     .chatMain
       .chatNav
         .chatName.hideScrollbar SELECT A PERSON TO CHAT WITH
-        .chatDelete DELETE CHAT
+        .chatVideoBtn VIDEO CHAT
       .chatMsgContainer
         .chatMsgContainerList
       .chatMsgForm
         input.chatMsgInput(placeholder="SEND A MESSAGE")
         .chatMsgInputSubmit SEND
+      .chatVideos
+        video.chatPeerVideo(autoplay=true)
+        video.chatUserVideo(autoplay=true muted)
+
 
     
 

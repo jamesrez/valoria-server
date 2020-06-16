@@ -230,6 +230,11 @@
       this.user;
       this.peers = {};
       this.datas = {};
+      this.calls = {};
+      this.onCallCallback;
+      this.peer.on('call', (call) => {
+        this.onCallCallback(call);
+      })
     }
 
     async register(username, password, cb){
@@ -425,6 +430,34 @@
           }
         })
       })
+    }
+
+    call(peerId, myStream, cb){
+      let call = this.peer.call(peerId, myStream);
+      this.calls[peerId] = call;
+      this.calls[peerId].on('stream', function(stream) {
+        if(cb && typeof cb === 'function'){
+          cb(stream)
+        }
+      });
+    }
+
+    onCall(cb){
+      this.onCallCallback = function(call){
+        if(cb && typeof cb === 'function'){
+          this.calls[call.peer] = call;
+          cb(call.peer)
+        }
+      }
+    }
+
+    answerCall(callId, myStream, cb){
+      this.calls[callId].answer(myStream);
+      this.calls[callId].on('stream', function(stream) {
+        if(cb && typeof cb === 'function'){
+          cb(stream)
+        }
+      });
     }
 
   }
