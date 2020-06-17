@@ -7,6 +7,8 @@ const bodyParser = require('body-parser');
 const { Crypto } = require("@peculiar/webcrypto");
 const crypto = new Crypto();
 const util = require('util');
+const mediasoup = require("mediasoup");
+const stun = require('stun');
 require('dotenv').config();
 
 app.set('views', 'client')
@@ -364,4 +366,51 @@ function startSocketIO(){
 
   })
 };
+
+
+//MEDIA SOUP STUFF 
+(async function(){
+  var serverOptions = {
+    rtcMinPort: 20000,
+    rtcMaxPort: 29999
+  };
+  const res = await stun.request('stun.l.google.com:19302');
+  var pubIp = res.getXorAddress().address;
+  if(pubIp) {
+    console.log('Detected Server IP', pubIp);
+    serverOptions.rtcAnnouncedIPv4 = pubIp;
+  }
+  const worker = await mediasoup.createWorker(serverOptions);
+  
+  worker.on("died", () => {
+    console.log("mediasoup Worker died, exit..");
+    process.exit(1);
+  });
+  
+  const router = await worker.createRouter({
+    mediaCodecs: [
+      {
+        kind: "audio",
+        name: "opus",
+        mimeType: "audio/opus",
+        clockRate: 48000,
+        channels: 2
+      },
+      {
+        kind: "video",
+        name: "VP8",
+        mimeType: "video/VP8",
+        clockRate: 90000
+      },
+      {
+        kind: "video",
+        name: "H264",
+        mimeType: "video/H264",
+        clockRate: 90000
+      }
+    ]
+  });
+})()
+
+
 

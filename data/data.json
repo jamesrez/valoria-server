@@ -1,16 +1,5 @@
 {
-  "online": {
-    "ezh2zqU7MJOS0AMBAAAC": {
-      "username": "jammie",
-      "userId": "2c07653ee213f261c90939a3ab7185e6f03bc99a1d822362ce4a8b1e880f33c9",
-      "dimension": "valoria"
-    },
-    "vvjpf3PosVxL4yAvAAAD": {
-      "username": "0xbb22f592e968dceda4c00305e5013db52dde0e23d7b5f8edb8876ae4f528d23d3a0d88ea495e4ee5603556a5670eef3245a84911505bebf031e3e68940b1ac941c",
-      "userId": "a307ca8db4bcc507378838578b6c42006c52339f1ec7e50d2e61bb2360fd8953",
-      "dimension": "valoria"
-    }
-  },
+  "online": {},
   "users": {
     "james": {
       "9a9808a45134bc6bcad2c3d01dcef39c121da7977c5051490ea726dd683e3621": {
