@@ -483,8 +483,13 @@ function startSocketIO(){
 
 
 const networkInterfaces = os.networkInterfaces();
+let serverIp;
 console.log(networkInterfaces)
-const serverIp = networkInterfaces['en0'][1].address;
+if(networkInterfaces['eth0']){
+  serverIp = networkInterfaces['eth0'].address;
+} else {
+  const serverIp = networkInterfaces['en0'][1].address;
+}
 console.log(serverIp)
 async function createWebRtcTransport(ip) {
 
