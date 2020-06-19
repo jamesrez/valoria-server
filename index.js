@@ -490,13 +490,13 @@ if(networkInterfaces['eth0']){
 } else {
   serverIp = networkInterfaces['en0'][1].address;
 }
-console.log(serverIp)
 async function createWebRtcTransport() {
 
   const {
     maxIncomingBitrate,
     initialAvailableOutgoingBitrate
   } = webRtcTransportConfig;
+  console.log(networkInterfaces)
   console.log("listenIp: ", serverIp);
   const transport = await mediasoupRouter.createWebRtcTransport({
     listenIps: [
