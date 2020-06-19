@@ -11284,7 +11284,7 @@
           })
         });
         transport.on('connectionstatechange', async (state) => {
-          console.log("Consumer Status: ", status);
+          console.log("Consumer Status: ", state);
         });
         thisValoria.consume(transport, userId, myId, (stream) => {
           if(cb && typeof cb === 'function'){

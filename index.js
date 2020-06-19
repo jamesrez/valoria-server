@@ -5,6 +5,7 @@ const server = require('http').Server(app);
 const io = require('socket.io')(server);
 const bodyParser = require('body-parser');
 const { Crypto } = require("@peculiar/webcrypto");
+const os = require( 'os' );
 const crypto = new Crypto();
 const util = require('util');
 const mediasoup = require("mediasoup");
@@ -44,15 +45,8 @@ let consumerTransports = {};
   const res = await stun.request('stun.l.google.com:19302');
   var pubIp = res.getXorAddress().address;
   if(pubIp) {
-    console.log('Detected Server IP', pubIp);
     serverOptions.rtcAnnouncedIPv4 = pubIp;
     webRtcTransportConfig = {
-      listenIps: [
-        {
-          ip: pubIp,
-          announcedIp: null,
-        }
-      ],
       maxIncomingBitrate: 1500000,
       initialAvailableOutgoingBitrate: 1000000,
     }
@@ -79,12 +73,12 @@ let consumerTransports = {};
         mimeType: "video/VP8",
         clockRate: 90000
       },
-      {
-        kind: "video",
-        name: "H264",
-        mimeType: "video/H264",
-        clockRate: 90000
-      }
+      // {
+      //   kind: "video",
+      //   name: "H264",
+      //   mimeType: "video/H264",
+      //   clockRate: 90000
+      // }
     ]
   });
 })()
@@ -488,6 +482,10 @@ function startSocketIO(){
 };
 
 
+const networkInterfaces = os.networkInterfaces();
+console.log(networkInterfaces)
+const serverIp = networkInterfaces['en0'][1].address;
+console.log(serverIp)
 async function createWebRtcTransport(ip) {
 
   const {
@@ -496,21 +494,15 @@ async function createWebRtcTransport(ip) {
   } = webRtcTransportConfig;
 
   const transport = await mediasoupRouter.createWebRtcTransport({
-    listenIps: [{
-      ip,
-      announcedIp: null,
-    }],
+    listenIps: [
+      { ip: serverIp, announcedIp: null }
+    ],
     enableUdp: true,
     enableTcp: true,
     preferUdp: true,
-    initialAvailableOutgoingBitrate,
+    maxIncomingBitrate: 1500000,
+    initialAvailableOutgoingBitrate: 1000000,
   });
-  if (maxIncomingBitrate) {
-    try {
-      await transport.setMaxIncomingBitrate(maxIncomingBitrate);
-    } catch (error) {
-    }
-  }
   return {
     transport,
     params: {
