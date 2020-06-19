@@ -435,14 +435,14 @@ function startSocketIO(){
 
     socket.on('createProducerTransport', async (userId) => {
       let ip = socket.handshake.address;
-      const { transport, params } = await createWebRtcTransport(ip);
+      const { transport, params } = await createWebRtcTransport();
       producerTransports[userId] = transport;
       socket.emit('createProducerTransport', params);
     });
 
     socket.on('createConsumerTransport', async (data) => {
       let ip = socket.handshake.address;
-      const { transport, params } = await createWebRtcTransport(ip);
+      const { transport, params } = await createWebRtcTransport();
       consumerTransports[data.userId] = transport;
       socket.emit('createConsumerTransport', params);
     });
@@ -488,16 +488,16 @@ console.log(networkInterfaces)
 if(networkInterfaces['eth0']){
   serverIp = networkInterfaces['eth0'].address;
 } else {
-  const serverIp = networkInterfaces['en0'][1].address;
+  serverIp = networkInterfaces['en0'][1].address;
 }
 console.log(serverIp)
-async function createWebRtcTransport(ip) {
+async function createWebRtcTransport() {
 
   const {
     maxIncomingBitrate,
     initialAvailableOutgoingBitrate
   } = webRtcTransportConfig;
-
+  console.log("listenIp: ", serverIp);
   const transport = await mediasoupRouter.createWebRtcTransport({
     listenIps: [
       { ip: serverIp, announcedIp: null }
