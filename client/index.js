@@ -103,6 +103,7 @@ async function connectToPeer(peer){
       navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(function(myStream) {
         $('.chatUserVideo')[0].srcObject = myStream;
         valoria.call(peer.userId, myStream, (theirStream) => {
+          console.log(theirStream)
           let video = $('.chatPeerVideo')[0]
           video.srcObject = theirStream;
         });
@@ -112,6 +113,7 @@ async function connectToPeer(peer){
       navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(function(myStream) {
         $('.chatUserVideo')[0].srcObject = myStream;
         valoria.answer(d, myStream, (theirStream) => {
+          console.log(theirStream)
           let video = $('.chatPeerVideo')[0]
           video.srcObject = theirStream;
         });

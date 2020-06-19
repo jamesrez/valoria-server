@@ -29,6 +29,67 @@ let data = {
   dimensions: {}
 };
 
+let mediasoupRouter;
+let webRtcTransportConfig;
+let producerTransports = {};
+let producers = {};
+let consumerTransports = {};
+
+//MEDIA SOUP STUFF 
+(async function(){
+  var serverOptions = {
+    rtcMinPort: 20000,
+    rtcMaxPort: 29999
+  };
+  const res = await stun.request('stun.l.google.com:19302');
+  var pubIp = res.getXorAddress().address;
+  if(pubIp) {
+    console.log('Detected Server IP', pubIp);
+    serverOptions.rtcAnnouncedIPv4 = pubIp;
+    webRtcTransportConfig = {
+      listenIps: [
+        {
+          ip: pubIp,
+          announcedIp: null,
+        }
+      ],
+      maxIncomingBitrate: 1500000,
+      initialAvailableOutgoingBitrate: 1000000,
+    }
+  }
+  const worker = await mediasoup.createWorker(serverOptions);
+  
+  worker.on("died", () => {
+    console.log("mediasoup Worker died, exit..");
+    process.exit(1);
+  });
+  
+  mediasoupRouter = await worker.createRouter({
+    mediaCodecs: [
+      {
+        kind: "audio",
+        name: "opus",
+        mimeType: "audio/opus",
+        clockRate: 48000,
+        channels: 2
+      },
+      {
+        kind: "video",
+        name: "VP8",
+        mimeType: "video/VP8",
+        clockRate: 90000
+      },
+      {
+        kind: "video",
+        name: "H264",
+        mimeType: "video/H264",
+        clockRate: 90000
+      }
+    ]
+  });
+})()
+
+
 if(!process.env.AWS_ACCESS_KEY_ID){
   try {
     let d = fs.readFileSync('./data/data.json', 'utf8');
@@ -104,6 +165,7 @@ function base64ToArrayBuffer(dataUrl, cb) {
 
 function startSocketIO(){
   io.on('connection', function (socket) {
+
     socket.on('Create User', (d) => {
       if(!data.users[d.userName]){
         data.users[d.username] = {};
@@ -364,53 +426,135 @@ function startSocketIO(){
       }
     });
 
+    socket.on("Call User", (d) => {
+      if(data.users[d.toUsername] && data.users[d.toUsername][d.toUserId]){
+        let sockets = data.users[d.toUsername][d.toUserId].sockets;
+        Object.keys(sockets).forEach((id) => {
+          io.to(id).emit('Getting Call', d.userId);
+        })
+      }
+    });
+
+    socket.on('getRouterRtpCapabilities', () => {
+      socket.emit('getRouterRtpCapabilities', mediasoupRouter.rtpCapabilities);
+    });
+
+    socket.on('createProducerTransport', async (userId) => {
+      let ip = socket.handshake.address;
+      const { transport, params } = await createWebRtcTransport(ip);
+      producerTransports[userId] = transport;
+      socket.emit('createProducerTransport', params);
+    });
+
+    socket.on('createConsumerTransport', async (data) => {
+      let ip = socket.handshake.address;
+      const { transport, params } = await createWebRtcTransport(ip);
+      consumerTransports[data.userId] = transport;
+      socket.emit('createConsumerTransport', params);
+    });
+
+    socket.on('connectProducerTransport', async (d) => {
+      await producerTransports[d.userId].connect({ dtlsParameters: d.dtlsParameters });
+      socket.emit('connectProducerTransport');
+    });
+
+    socket.on('connectConsumerTransport', async (d) => {
+      await consumerTransports[d.userId].connect({ dtlsParameters: d.dtlsParameters });
+      socket.emit('connectConsumerTransport');
+    });
+
+    socket.on('produce', async (d) => {
+      producers[d.userId] = await producerTransports[d.userId].produce({ 
+        kind: d.kind, 
+        rtpParameters: d.rtpParameters
+      });
+      socket.emit('produce', producers[d.userId]);
+      if(data.users[d.toUsername] && data.users[d.toUsername][d.toUserId]){
+        let sockets = data.users[d.toUsername][d.toUserId].sockets;
+        Object.keys(sockets).forEach((id) => {
+          io.to(id).emit('New Peer Producer', d.userId);
+        })
+      }
+    });
+
+    socket.on('consume', async (d) => {
+      const consumer = await createConsumer(producers[d.userId], d.rtpCapabilities, d.myId);
+      socket.emit('consume', consumer);
+    });
+
+
+
   })
 };
 
 
-//MEDIA SOUP STUFF 
-(async function(){
-  var serverOptions = {
-    rtcMinPort: 20000,
-    rtcMaxPort: 29999
-  };
-  const res = await stun.request('stun.l.google.com:19302');
-  var pubIp = res.getXorAddress().address;
-  if(pubIp) {
-    console.log('Detected Server IP', pubIp);
-    serverOptions.rtcAnnouncedIPv4 = pubIp;
-  }
-  const worker = await mediasoup.createWorker(serverOptions);
-  
-  worker.on("died", () => {
-    console.log("mediasoup Worker died, exit..");
-    process.exit(1);
-  });
-  
-  const router = await worker.createRouter({
-    mediaCodecs: [
-      {
-        kind: "audio",
-        name: "opus",
-        mimeType: "audio/opus",
-        clockRate: 48000,
-        channels: 2
-      },
-      {
-        kind: "video",
-        name: "VP8",
-        mimeType: "video/VP8",
-        clockRate: 90000
-      },
-      {
-        kind: "video",
-        name: "H264",
-        mimeType: "video/H264",
-        clockRate: 90000
-      }
-    ]
-  });
-})()
+async function createWebRtcTransport(ip) {
 
+  const {
+    maxIncomingBitrate,
+    initialAvailableOutgoingBitrate
+  } = webRtcTransportConfig;
+
+  const transport = await mediasoupRouter.createWebRtcTransport({
+    listenIps: [{
+      ip,
+      announcedIp: null,
+    }],
+    enableUdp: true,
+    enableTcp: true,
+    preferUdp: true,
+    initialAvailableOutgoingBitrate,
+  });
+  if (maxIncomingBitrate) {
+    try {
+      await transport.setMaxIncomingBitrate(maxIncomingBitrate);
+    } catch (error) {
+    }
+  }
+  return {
+    transport,
+    params: {
+      id: transport.id,
+      iceParameters: transport.iceParameters,
+      iceCandidates: transport.iceCandidates,
+      dtlsParameters: transport.dtlsParameters
+    },
+  };
+}
+
+async function createConsumer(producer, rtpCapabilities, userId) {
+  if (!mediasoupRouter.canConsume(
+    {
+      producerId: producer.id,
+      rtpCapabilities,
+    })
+  ) {
+    console.error('can not consume');
+    return;
+  }
+  try {
+    consumer = await consumerTransports[userId].consume({
+      producerId: producer.id,
+      rtpCapabilities,
+      paused: producer.kind === 'video',
+    });
+  } catch (error) {
+    console.error('consume failed', error);
+    return;
+  }
+
+  if (consumer.type === 'simulcast') {
+    await consumer.setPreferredLayers({ spatialLayer: 2, temporalLayer: 2 });
+  }
+
+  return {
+    producerId: producer.id,
+    id: consumer.id,
+    kind: consumer.kind,
+    rtpParameters: consumer.rtpParameters,
+    type: consumer.type,
+    producerPaused: consumer.producerPaused
+  };
+}
 
 
