@@ -493,6 +493,8 @@
     //RTCIceCandidate并将其添加到peerConnection。
     onCandidate(candidate, thisVal) {
       //更新字幕
+      console.log("ON CANDIDATE GETS CALLED");
+      console.log(candidate);
       let rtcCandidate = new RTCIceCandidate(JSON.parse(candidate));
       console.log(
         `onCandidate <<< Received remote ICE candidate (${rtcCandidate.address} - ${rtcCandidate.relatedAddress})`
