@@ -370,6 +370,7 @@
         this.willInitiateCall = true
       });
       socket.on("candidate", (c) => {
+        console.log("WE NEVER GET THIS???")
         console.log(c);
         thisVal.onCandidate(c, thisVal)
       });
