@@ -530,9 +530,11 @@ function startSocketIO(){
       var numClients = typeof clients !== "undefined" ? clients.length : 0;
       socket.join(room);
       console.log(`room ${room} Broadcasting ready message`);
-      socket.broadcast.to(room).emit("willInitiateCall", room);
-      socket.emit("ready", room).to(room);
-      socket.broadcast.to(room).emit("ready", room);
+      if(numClients > 1){
+        socket.emit("willInitiateCall", room);
+        socket.to(room).emit("ready", room)
+      }
+      // socket.broadcast.to(room).emit("ready", room);
     });
 
     socket.on("iceServers", function (room) {
