@@ -402,6 +402,7 @@
       const socket = this.socket;
       const thisVal = this;
       console.log("<<< Received turn");
+      console.log(turn)
       // 使用Turn建立RTCPeerConnection。
       thisVal.peerConnection = new RTCPeerConnection({
         iceServers: turn.iceServers,
