@@ -479,6 +479,7 @@
             JSON.stringify(event.candidate),
             callId
           );
+          console.log(callId);
         } else {
           //如果我们未“连接”到其他对等方，则我们正在缓冲本地ICE候选对象。
           //这很可能发生在“调用方”一侧。
