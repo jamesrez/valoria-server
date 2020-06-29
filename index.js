@@ -544,18 +544,13 @@ function startSocketIO(){
         /* Notice: 这边需要添加自己的 STUN/TURN 服务器, 可以考虑Coturn(https://github.com/coturn/coturn) */
         iceServers: iceServers
       };
-      socket.emit("iceServers", response).to(room);
+      socket.emit("iceServers", response);
     });
   
     // Relay candidate messages
     socket.on("candidate", function (candidate, room) {
       console.log(`${room} Received candidate. Broadcasting... ${candidate}`);
-      const sockets = io.sockets.adapter.rooms[room].sockets;
-      Object.keys(sockets).forEach((id) => {
-        if(socket.id === id) return;
-        console.log("Sending candidate to " + id)
-        io.to(id).emit("candidate", candidate);
-      })
+      socket.to(room).emit('candidate', candidate);
     });
   
     // Relay offers
