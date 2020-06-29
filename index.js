@@ -92,8 +92,7 @@ if(!process.env.AWS_ACCESS_KEY_ID){
   saveData(data, async () => {
     if(process.env.TWILIO_ACCOUNT_SID){
       const token = await twilioClient.tokens.create();
-      console.log(token);
-      iceServers = token["ice_servers"];
+      iceServers = token.iceServers;
     }
     startSocketIO();
   });
@@ -114,8 +113,7 @@ if(!process.env.AWS_ACCESS_KEY_ID){
       saveData(data, async () => {
         if(process.env.TWILIO_ACCOUNT_SID){
           const token = await twilioClient.tokens.create();
-          console.log(token)
-          iceServers = token["ice_servers"];
+          iceServers = token.iceServers;
         }
         startSocketIO();
       })
@@ -127,8 +125,7 @@ if(!process.env.AWS_ACCESS_KEY_ID){
         //GET TWILIO STUN/TURN SERVERS
         if(process.env.TWILIO_ACCOUNT_SID){
           const token = await twilioClient.tokens.create();
-          console.log(token);
-          iceServers = token["ice_servers"];
+          iceServers = token.iceServers
         }
         startSocketIO();
       });
@@ -545,7 +542,6 @@ function startSocketIO(){
     });
 
     socket.on("iceServers", function (room) {
-      console.log(iceServers)
       var response = {
         /* Notice: 这边需要添加自己的 STUN/TURN 服务器, 可以考虑Coturn(https://github.com/coturn/coturn) */
         iceServers: iceServers
