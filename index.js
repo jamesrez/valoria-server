@@ -533,8 +533,9 @@ function startSocketIO(){
       console.log(numClients);
       if(numClients > 0){
         socket.emit("willInitiateCall", room);
+        socket.emit("ready", true)
       }
-      socket.to(room).emit("ready", room)
+      socket.to(room).emit("ready", false)
       // socket.broadcast.to(room).emit("ready", room);
     });
 

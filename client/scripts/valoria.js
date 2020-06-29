@@ -365,17 +365,17 @@
       socket.emit("join", callId);
       // 增加监听
       socket.on("offer", (offer) => this.onOffer(offer, stream));
-      socket.on("ready", () => this.readyToCall(callId, stream));
+      socket.on("ready", (initiate) => this.readyToCall(callId, stream, initiate));
       socket.on("willInitiateCall", () => {
         this.willInitiateCall = true
       });
     }
 
     //当我们准备好拨打电话时，启用“通话”按钮。
-    readyToCall(callId, stream) {
+    readyToCall(callId, stream, initiate) {
       console.log("readyToCall");
       //最先加入通话的人最有可能发起通话
-      if (this.willInitiateCall) {
+      if (initiate) {
         console.log("Initiating call");
         this.startCall(callId, stream);
       } else {
