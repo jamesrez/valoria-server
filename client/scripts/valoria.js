@@ -472,6 +472,8 @@
         console.log(
           `<<< Received local ICE candidate from STUN/TURN server (${event.candidate.address})`
         );
+        console.log(this.valoria);
+        console.log(this.valoria.connected);
         if (this.valoria.connected) {
           console.log(`>>> Sending local ICE candidate (${event.candidate.address})`);
           socket.emit(
