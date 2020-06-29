@@ -433,7 +433,10 @@
       thisVal.peerConnection.onicecandidate = thisVal.onIceCandidate;
       thisVal.peerConnection.ontrack = thisVal.onTrack;
       //在套接字上设置侦听器
-      socket.on("candidate", (c) => thisVal.onCandidate(c, thisVal));
+      socket.on("candidate", (c) => {
+        console.log(c);
+        thisVal.onCandidate(c, thisVal)
+      });
       socket.on("answer", (a) => thisVal.onAnswer(a, thisVal));
 
       //当连接状态发生变化时调用
@@ -490,7 +493,7 @@
           thisVal.localICECandidates.push(event.candidate);
         }
       }
-    }
+    } 
 
     //当通过套接字接收候选人时，将其变回真实
     //RTCIceCandidate并将其添加到peerConnection。
