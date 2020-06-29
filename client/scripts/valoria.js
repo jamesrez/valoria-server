@@ -369,11 +369,6 @@
       socket.on("willInitiateCall", () => {
         this.willInitiateCall = true
       });
-      socket.on("candidate", (c) => {
-        console.log("WE NEVER GET THIS???")
-        console.log(c);
-        thisVal.onCandidate(c, thisVal)
-      });
     }
 
     //当我们准备好拨打电话时，启用“通话”按钮。
@@ -402,7 +397,6 @@
       const socket = this.socket;
       const thisVal = this;
       console.log("<<< Received turn");
-      console.log(turn)
       // 使用Turn建立RTCPeerConnection。
       thisVal.peerConnection = new RTCPeerConnection({
         iceServers: turn.iceServers,
@@ -440,6 +434,11 @@
       thisVal.peerConnection.ontrack = thisVal.onTrack;
       //在套接字上设置侦听器
       
+      socket.on("candidate", (c) => {
+        console.log("WE NEVER GET THIS???")
+        console.log(c);
+        thisVal.onCandidate(c, thisVal)
+      });
       socket.on("answer", (a) => thisVal.onAnswer(a, thisVal));
 
       //当连接状态发生变化时调用
