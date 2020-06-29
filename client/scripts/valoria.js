@@ -448,6 +448,7 @@
             console.log("disconnected");
           case "failed":
             console.log("failed");
+            thisVal.createOffer(thisVal)
             // WebRTC.socket.connect
             // WebRTC.createOffer();
             // Refresh page if connection has failed
