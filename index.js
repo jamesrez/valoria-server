@@ -11,7 +11,7 @@ const util = require('util');
 const stun = require('stun');
 const { uuid } = require('uuidv4');
 require('dotenv').config();
-
+const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID || "AClol", process.env.TWILIO_AUTH_TOKEN || "lol");
 app.set('views', 'client')
 app.set('view engine', 'pug');
 app.use(express.json())
@@ -29,6 +29,8 @@ let data = {
   peers: {},
   dimensions: {}
 };
+
+let iceServers = [{ url: "stun:stun.l.google.com:19302" }];
 
 // //MEDIA SOUP STUFF 
 // (async function(){
@@ -87,7 +89,11 @@ if(!process.env.AWS_ACCESS_KEY_ID){
     fs.writeFileSync('data/data.json', data, {flag: 'a'});
   }
   data.online = {};
-  saveData(data, () => {
+  saveData(data, async () => {
+    if(process.env.TWILIO_ACCOUNT_SID){
+      const token = await client.tokens.create();
+      iceServers = token["ice_servers"];
+    }
     startSocketIO();
   });
 } else {
@@ -96,7 +102,7 @@ if(!process.env.AWS_ACCESS_KEY_ID){
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
   });
-  s3.getObject({Bucket : process.env.S3_BUCKET, Key : "data.json"}, function(err, fileData) {
+  s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : "data.json"}, function(err, fileData) {
     if(err) {
       data = {
         "users": {},
@@ -104,14 +110,23 @@ if(!process.env.AWS_ACCESS_KEY_ID){
         "peers": {},
         "dimensions": {}
       }
-      saveData(data, () => {
+      saveData(data, async () => {
+        if(process.env.TWILIO_ACCOUNT_SID){
+          const token = await client.tokens.create();
+          iceServers = token["ice_servers"];
+        }
         startSocketIO();
       })
     }else{
       data = JSON.parse(fileData.Body.toString());
       data.online = {};
       data.peers = {};
-      saveData(data, () => {
+      saveData(data, async () => {
+        //GET TWILIO STUN/TURN SERVERS
+        if(process.env.TWILIO_ACCOUNT_SID){
+          const token = await client.tokens.create();
+          iceServers = token["ice_servers"];
+        }
         startSocketIO();
       });
     }
@@ -125,7 +140,7 @@ function saveData(data, cb) {
       if(cb && typeof cb == 'function') cb();
     });
   }else {
-    s3.upload({Bucket : process.env.S3_BUCKET, Key : "data.json", Body : JSON.stringify(data, null, 2)}, (err, fileData) => {
+    s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : "data.json", Body : JSON.stringify(data, null, 2)}, (err, fileData) => {
       if (err) console.error(`Upload Error ${err}`);
       if(cb && typeof cb == 'function') cb();
     });
@@ -368,7 +383,7 @@ function startSocketIO(){
             if (err) return console.log(err);
           });
         }else {
-          s3.getObject({Bucket : process.env.S3_BUCKET, Key : `${d.userId}.json`}, function(err, userData) {
+          s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`}, function(err, userData) {
             // if(err) console.log("S3 Err: ", err);
             if(userData){
               userData = JSON.parse(userData.Body.toString());
@@ -376,7 +391,7 @@ function startSocketIO(){
             }else{
               userData = {};
             }
-            s3.upload({Bucket : process.env.S3_BUCKET, Key : `${d.userId}.json`, Body : JSON.stringify(userData, null, 2)}, (err, fileData) => {
+            s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`, Body : JSON.stringify(userData, null, 2)}, (err, fileData) => {
               if (err) console.error(`Upload Error ${err}`);
             });
           })
@@ -417,7 +432,7 @@ function startSocketIO(){
           let thisData = getDataFromPath(JSON.parse(userData), d.path);
           socket.emit("Get User Data", {data: thisData, path: uniquePath});
         }else{
-          s3.getObject({Bucket : process.env.S3_BUCKET, Key : `${d.userId}.json`}, function(err, fileData) {
+          s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`}, function(err, fileData) {
             if(err) console.log("S3 Err: ", err);
             if(fileData){
               fileData = fileData.Body.toString();
@@ -529,7 +544,7 @@ function startSocketIO(){
     socket.on("iceServers", function (room) {
       var response = {
         /* Notice: 这边需要添加自己的 STUN/TURN 服务器, 可以考虑Coturn(https://github.com/coturn/coturn) */
-        iceServers: [{ url: "stun:stun.l.google.com:19302" }],
+        iceServers: iceServers
       };
       socket.emit("iceServers", response).to(room);
     });
