@@ -16,11 +16,11 @@
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "gun": "^0.2020.520",
-    "mediasoup": "^3.6.7",
     "node-fetch": "^2.6.0",
     "pug": "^3.0.0",
     "socket.io": "^2.3.0",
-    "stun": "^2.1.0"
+    "stun": "^2.1.0",
+    "uuidv4": "^6.1.1"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^8.0.1"
