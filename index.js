@@ -552,17 +552,17 @@ function startSocketIO(){
       console.log(`${room} Received candidate. Broadcasting... ${candidate}`);
       console.log(room);
       console.log(candidate)
-      socket.broadcast.to(room).emit("candidate", candidate);
+      socket.to(room).emit("candidate", candidate);
     });
   
     // Relay offers
     socket.on("offer", function (offer, room) {
-      socket.broadcast.to(room).emit("offer", offer);
+      socket.to(room).emit("offer", offer);
     });
   
     // Relay answers
     socket.on("answer", function (answer, room) {
-      socket.broadcast.to(room).emit("answer", answer);
+      socket.to(room).emit("answer", answer);
     });
 
 
