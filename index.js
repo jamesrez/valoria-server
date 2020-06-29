@@ -530,7 +530,7 @@ function startSocketIO(){
       var numClients = typeof clients !== "undefined" ? clients.length : 0;
       socket.join(room);
       console.log(`room ${room} Broadcasting ready message`);
-      if(numClients > 1){
+      if(numClients > 0){
         socket.emit("willInitiateCall", room);
         socket.to(room).emit("ready", room)
       }
