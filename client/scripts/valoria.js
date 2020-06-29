@@ -433,6 +433,7 @@
       thisVal.peerConnection.onicecandidate = thisVal.onIceCandidate;
       thisVal.peerConnection.ontrack = thisVal.onTrack;
       //在套接字上设置侦听器
+      console.log("LISTENING FOR CANDIDATE");
       socket.on("candidate", (c) => {
         console.log(c);
         thisVal.onCandidate(c, thisVal)
