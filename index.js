@@ -92,6 +92,7 @@ if(!process.env.AWS_ACCESS_KEY_ID){
   saveData(data, async () => {
     if(process.env.TWILIO_ACCOUNT_SID){
       const token = await twilioClient.tokens.create();
+      console.log(token);
       iceServers = token["ice_servers"];
     }
     startSocketIO();
@@ -113,6 +114,7 @@ if(!process.env.AWS_ACCESS_KEY_ID){
       saveData(data, async () => {
         if(process.env.TWILIO_ACCOUNT_SID){
           const token = await twilioClient.tokens.create();
+          console.log(token)
           iceServers = token["ice_servers"];
         }
         startSocketIO();
@@ -125,6 +127,7 @@ if(!process.env.AWS_ACCESS_KEY_ID){
         //GET TWILIO STUN/TURN SERVERS
         if(process.env.TWILIO_ACCOUNT_SID){
           const token = await twilioClient.tokens.create();
+          console.log(token);
           iceServers = token["ice_servers"];
         }
         startSocketIO();
