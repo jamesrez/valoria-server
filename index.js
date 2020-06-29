@@ -524,6 +524,7 @@ function startSocketIO(){
     });
 
 
+    console.log("What happened")
     socket.on("join", function (room) {
       console.log(`A client joined the room ${room}`);
       var clients = io.sockets.adapter.rooms[room];
