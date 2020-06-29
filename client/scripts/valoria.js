@@ -477,7 +477,7 @@
         );
         console.log(this.valoria);
         console.log(this.valoria.connected);
-        if (!this.valoria.connected) {
+        if (this.valoria.connected) {
           console.log(`>>> Sending local ICE candidate (${event.candidate.address})`);
           socket.emit(
             "candidate",
