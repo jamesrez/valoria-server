@@ -550,8 +550,12 @@ function startSocketIO(){
     // Relay candidate messages
     socket.on("candidate", function (candidate, room) {
       console.log(`${room} Received candidate. Broadcasting... ${candidate}`);
-      console.log(io.sockets.adapter.rooms[room]);
-      socket.to(room).emit("candidate", candidate);
+      const sockets = io.sockets.adapter.rooms[room].sockets;
+      Object.keys(sockets).forEach((id) => {
+        if(socket.id === id) return;
+        console.log("Sending candidate to " + id)
+        io.to(id).emit("candidate", candidate);
+      })
     });
   
     // Relay offers
