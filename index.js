@@ -536,7 +536,6 @@ function startSocketIO(){
         socket.emit("ready", true)
       }
       socket.to(room).emit("ready", false)
-      // socket.broadcast.to(room).emit("ready", room);
     });
 
     socket.on("iceServers", function (room) {
@@ -550,17 +549,17 @@ function startSocketIO(){
     // Relay candidate messages
     socket.on("candidate", function (candidate, room) {
       console.log(`${room} Received candidate. Broadcasting... ${candidate}`);
-      socket.to(room).emit('candidate', candidate);
+      socket.emit('candidate', candidate).to(room);
     });
   
     // Relay offers
     socket.on("offer", function (offer, room) {
-      socket.to(room).emit("offer", offer);
+      socket.emit("offer", offer).to(room);
     });
   
     // Relay answers
     socket.on("answer", function (answer, room) {
-      socket.to(room).emit("answer", answer);
+      socket.emit("answer", answer).to(room);
     });
 
 
