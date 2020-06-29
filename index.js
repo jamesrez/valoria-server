@@ -542,6 +542,7 @@ function startSocketIO(){
     });
 
     socket.on("iceServers", function (room) {
+      console.log(iceServers)
       var response = {
         /* Notice: 这边需要添加自己的 STUN/TURN 服务器, 可以考虑Coturn(https://github.com/coturn/coturn) */
         iceServers: iceServers
