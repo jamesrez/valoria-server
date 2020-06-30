@@ -551,7 +551,10 @@ function startSocketIO(){
       console.log(candidate)
       if(!io.sockets.adapter.rooms[room]) return;
       Object.keys(io.sockets.adapter.rooms[room].sockets).forEach((id) => {
-        io.to(id).emit('newCandidate', candidate)
+        if(id !== socket.id){
+          console.log(id);
+          io.to(id).emit('newCandidate', candidate)
+        }
       })
     });
   
