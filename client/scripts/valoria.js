@@ -372,7 +372,7 @@
       socket.on("newCandidate", (c) => {
         console.log("WE NEVER GET THIS???")
         console.log(c);
-        thisVal.onCandidate(c, thisVal)
+        thisVal.onCandidate(c, this)
       });
     }
 
