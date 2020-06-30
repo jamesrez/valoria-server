@@ -434,7 +434,7 @@
       thisVal.peerConnection.ontrack = thisVal.onTrack;
       //在套接字上设置侦听器
       
-      socket.on("candidate", (c) => {
+      socket.on("newCandidate", (c) => {
         console.log("WE NEVER GET THIS???")
         console.log(c);
         thisVal.onCandidate(c, thisVal)
