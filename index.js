@@ -549,7 +549,9 @@ function startSocketIO(){
     socket.on("candidate", function (candidate, room) {
       console.log(room);
       console.log(candidate)
-      socket.to(room).emit('newCandidate', candidate);
+      Object.keys(io.sockets.adapter.rooms[room].sockets).forEach((id) => {
+        io.to(id).emit('newCandidate', candidate)
+      })
     });
   
     // Relay offers
