@@ -502,9 +502,8 @@
     onCandidate(event, thisVal) {
       //更新字幕
       console.log("ON CANDIDATE GETS CALLED");
-      console.log(event);
       event = JSON.parse(event);
-      let rtcCandidate = new RTCIceCandidate(event.candidate);
+      let rtcCandidate = new RTCIceCandidate(event);
       console.log(
         `onCandidate <<< Received remote ICE candidate (${rtcCandidate.address} - ${rtcCandidate.relatedAddress})`
       );
