@@ -499,11 +499,12 @@
 
     //当通过套接字接收候选人时，将其变回真实
     //RTCIceCandidate并将其添加到peerConnection。
-    onCandidate(candidate, thisVal) {
+    onCandidate(event, thisVal) {
       //更新字幕
       console.log("ON CANDIDATE GETS CALLED");
-      console.log(candidate);
-      let rtcCandidate = new RTCIceCandidate(JSON.parse(candidate));
+      console.log(event);
+      event = JSON.parse(event);
+      let rtcCandidate = new RTCIceCandidate(event.candidate);
       console.log(
         `onCandidate <<< Received remote ICE candidate (${rtcCandidate.address} - ${rtcCandidate.relatedAddress})`
       );
