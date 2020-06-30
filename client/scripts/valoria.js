@@ -434,6 +434,11 @@
       thisVal.peerConnection.ontrack = thisVal.onTrack;
       //在套接字上设置侦听器
       
+      socket.on("candidate", (c) => {
+        console.log("WE NEVER GET THIS???")
+        console.log(c);
+        thisVal.onCandidate(c, thisVal)
+      });
       socket.on("answer", (a) => thisVal.onAnswer(a, thisVal));
 
       //当连接状态发生变化时调用
@@ -476,12 +481,11 @@
         console.log(this.valoria.connected);
         if (this.valoria.connected) {
           console.log(`>>> Sending local ICE candidate (${event.candidate.address})`);
-          socket.emit("candidate", JSON.stringify(event.candidate), callId);
-          socket.on("candidate", (c) => {
-            console.log("WE NEVER GET THIS???")
-            console.log(c);
-            thisVal.onCandidate(c, thisVal)
-          });
+          socket.emit(
+            "candidate",
+            JSON.stringify(event.candidate),
+            callId
+          );
           console.log(callId);
         } else {
           //如果我们未“连接”到其他对等方，则我们正在缓冲本地ICE候选对象。

@@ -549,7 +549,7 @@ function startSocketIO(){
     socket.on("candidate", function (candidate, room) {
       console.log(room);
       console.log(candidate)
-      socket.to(room).emit('candidate', candidate);
+      io.in(room).emit('candidate', candidate);
     });
   
     // Relay offers
