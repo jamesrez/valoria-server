@@ -549,6 +549,7 @@ function startSocketIO(){
     socket.on("candidate", function (candidate, room) {
       console.log(room);
       console.log(candidate)
+      if(!io.sockets.adapter.rooms[room]) return;
       Object.keys(io.sockets.adapter.rooms[room].sockets).forEach((id) => {
         io.to(id).emit('newCandidate', candidate)
       })
