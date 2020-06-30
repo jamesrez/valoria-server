@@ -141,7 +141,7 @@
   }
   
   class Valoria {
-  
+    
     constructor(opts){
       this.server = opts.server;
       this.socket = io(this.server);
@@ -159,7 +159,7 @@
       this.localICECandidates = [];
       this.peerConnection;
       this.callId;
-
+  
       this.socket.on('Getting Call', (d) => {
         if(d.initiated){
           this.callId = d.callId;
@@ -171,7 +171,7 @@
           .then((stream) => {
             this.onMediaStream(stream, d.callId);
           })
-        }else {
+        }else{
           this.onCallIncoming(d);
         }
       });
@@ -355,8 +355,8 @@
         });
       });
     }
-
-
+  
+  
     //NEW WEBRTC METHODS
     onMediaStream(stream, callId) {
       const socket = this.socket;
@@ -369,33 +369,28 @@
       socket.on("willInitiateCall", () => {
         this.willInitiateCall = true
       });
-      socket.on("newCandidate", (c) => {
-        console.log("WE NEVER GET THIS???")
-        console.log(c);
-        this.onCandidate(c, this)
-      });
     }
-
+  
     //当我们准备好拨打电话时，启用“通话”按钮。
     readyToCall(callId, stream, initiate) {
       console.log("readyToCall");
       //最先加入通话的人最有可能发起通话
       if (initiate) {
         console.log("Initiating call");
-        this.startCall(callId, stream);
+        this.initiateP2PConnection(callId, stream);
       } else {
-
+  
       }
     }
-
+  
     /* 呼叫 */
-    startCall(callId, stream) {
-      console.log("startCall >>> Sending token request...");
+    initiateP2PConnection(callId, stream) {
+      console.log("initiateP2PConnection >>> Sending token request...");
       /* 获取Turn服务器,并设置回调,回调执行完成后创建offer */
       this.socket.on("iceServers", (d) => this.onIceServers(stream, this.createOffer, d));
       this.socket.emit("iceServers", callId);
     }
-
+  
     /* 当获取到Turn服务器信息时调用 */
     onIceServers (stream, callback, turn, offer) {
       console.log("onIceServers");
@@ -407,9 +402,11 @@
         iceServers: turn.iceServers,
       });
       //将本地视频流添加到peerConnection。
-      stream.getTracks().forEach(function (track) {
-        thisVal.peerConnection.addTrack(track, stream);
-      });
+      if(stream){
+        stream.getTracks().forEach(function (track) {
+          thisVal.peerConnection.addTrack(track, stream);
+        });
+      }
       //将通用数据通道添加到对等连接，
       //用于文字聊天，字幕和切换发送字幕
       let dataChannel = thisVal.peerConnection.createDataChannel("chat", {
@@ -424,7 +421,7 @@
       //处理不同的dataChannel类型
       dataChannel.onmessage = function (event) {
         const receivedData = JSON.parse(event.data);
-
+  
         // First 4 chars represent data type
         const dataType = receivedData.type;
         const cleanedMessage = receivedData.data;
@@ -432,7 +429,7 @@
           handleRecieveMessage(cleanedMessage);
         }
       };
-
+  
       //为生成iceCandidates的连接和接收远程媒体流设置回调
       thisVal.peerConnection.valoria = thisVal;
       thisVal.peerConnection.onicecandidate = thisVal.onIceCandidate;
@@ -440,7 +437,12 @@
       //在套接字上设置侦听器
       
       socket.on("answer", (a) => thisVal.onAnswer(a, thisVal));
-
+      socket.on("newCandidate", (c) => {
+        console.log("WE NEVER GET THIS???")
+        console.log(c);
+        this.onCandidate(c, this)
+      });
+  
       //当连接状态发生变化时调用
       thisVal.peerConnection.oniceconnectionstatechange = function (event) {
         switch (thisVal.peerConnection.iceConnectionState) {
@@ -466,7 +468,7 @@
       };
       callback(thisVal, offer);
     }
-
+  
     //当peerConnection生成一个ice候选对象时，将其通过套接字发送给对等连接。
     onIceCandidate(event) {
       const callId = this.valoria.callId;
@@ -496,7 +498,7 @@
         }
       }
     } 
-
+  
     //当通过套接字接收候选人时，将其变回真实
     //RTCIceCandidate并将其添加到peerConnection。
     onCandidate(event, thisVal) {
@@ -509,7 +511,7 @@
       );
       thisVal.peerConnection.addIceCandidate(rtcCandidate);
     }
-
+  
     //创建一个包含浏览器媒体功能的offer
     createOffer(thisVal){
       console.log("createOffer >>> Creating offer...");
@@ -529,7 +531,7 @@
         }
       );
     }
-
+  
     // Create an answer with the media capabilities that both browsers share.
     // This function is called with the offer from the originating browser, which
     // needs to be parsed into an RTCSessionDescription and added as the remote
@@ -555,7 +557,7 @@
         }
       );
     }
-
+  
     /* 当收到offer时 去获取Turn服务器信息来建立RTCPeerConnection */
     onOffer (offer, stream) {
       const socket = this.socket;
@@ -564,7 +566,7 @@
       socket.on("iceServers", (d) => this.onIceServers(stream, this.createAnswer, d, offer));
       socket.emit("iceServers", this.callId);
     }
-
+  
     //收到答案后，将其添加到peerConnection作为远程描述
     onAnswer(answer, thisVal) {
       console.log("onAnswer <<< Received answer");
@@ -583,7 +585,7 @@
       //重置本地ICE候选者的缓冲区。
       thisVal.localICECandidates = [];
     }
-
+  
     //当流添加到对等连接时调用
     onTrack(event) {
       console.log(event);
@@ -598,7 +600,7 @@
       //一秒钟后重新定位本地视频，因为通常会有延迟
       //在添加流和更改视频div的高度之间
     }
-
+  
     call(userId, myStream, cb){
       this.onCallAnswered = function(stream){
         if(cb && typeof cb === 'function'){
