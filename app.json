@@ -20,6 +20,6 @@
     },
     "TWILIO_AUTH_TOKEN": {
       "description": "Find at https://www.twilio.com/console"
-    },
+    }
   }
 }

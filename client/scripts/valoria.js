@@ -192,9 +192,19 @@
               this.localStream = stream;
               this.socket.emit("join", d.connId);
             })
+          }else{
+            this.socket.emit("join", d.connId);
           }
         }else if(d.streaming){
           this.onCallIncoming(d);
+        }else{
+          this.conns[d.connId] = {
+            id: d.connId,
+            connected: false,
+            users: {[d.userId] : d.userId},
+            localICECandidates: []
+          }
+          this.socket.emit("join", d.connId);
         }
       });
   
@@ -638,6 +648,7 @@
     async on(cb){
       //LOOKUP LOCAL USER DATA
       const thisD = this;
+      const thisVal = thisD.user.valoria;
       localforage.getItem(`user/${this.user.id}/${this.path}`).then((d) => {
         if(d && cb && typeof cb === 'function'){
           cb(d);
@@ -649,8 +660,19 @@
             cb(d);
           }
         };
+
         Object.keys(thisD.user.valoria.user.sockets).forEach((id) => {
-          thisD.user.valoria.user.sockets[id].emit("Get User Data", {username: thisD.user.username, userId: thisD.user.id, path: thisD.path});
+          //ATTEMPT TO ASK USER THROUGH PEER TO PEER CONNECTION
+          if(thisD.user.id !== thisVal.user.id){
+            thisVal.user.sockets[id].emit('Connect to User', {
+              toUserId: thisD.user.id,
+              userId: thisVal.user.id,
+              toUsername: thisVal.onlinePeers[thisD.user.id].username,
+              streaming: false
+            });
+          }
+          //ASK VALORIA SERVER
+          thisVal.user.sockets[id].emit("Get User Data", {username: thisD.user.username, userId: thisD.user.id, path: thisD.path});
         });
       })
     }
