@@ -510,17 +510,17 @@ function startSocketIO(){
 
 
     //NEW WEBRTC SOCKETS
-    socket.on("Call User", function (d) {
-      //CREATE A RANDOM CALL ID AND THEN SEND IT TO BOTH USERS
-      let callId = "VALCALLID:" + uuid();
-      console.log(callId)
+    socket.on("Connect to User", function (d) {
+      //CREATE A RANDOM CONNECTION ID AND THEN SEND IT TO BOTH USERS
+      let connId = "VALCONNID:" + uuid();
+      console.log(connId)
       if(data.users[d.toUsername] && data.users[d.toUsername][d.toUserId]){
         let sockets = data.users[d.toUsername][d.toUserId].sockets;
         Object.keys(sockets).forEach((id) => {
-          io.to(id).emit('Getting Call', {userId: d.userId, callId: callId});
+          io.to(id).emit('Getting Connection', {userId: d.userId, connId: connId, streaming: d.streaming});
         })
       }
-      socket.emit("Getting Call", {userId: d.toUserId, callId: callId, initiated: true});
+      socket.emit("Getting Connection", {userId: d.toUserId, connId: connId, initiated: true, streaming: d.streaming});
     });
 
 
@@ -531,10 +531,9 @@ function startSocketIO(){
       socket.join(room);
       console.log(`room ${room} Broadcasting ready message`);
       if(numClients > 0){
-        socket.emit("willInitiateCall", room);
-        socket.emit("ready", true)
+        socket.emit("ready", room)
+        socket.to(room).emit("ready", room);
       }
-      socket.to(room).emit("ready", false)
     });
 
     socket.on("iceServers", function (room) {
@@ -542,7 +541,7 @@ function startSocketIO(){
         /* Notice: 这边需要添加自己的 STUN/TURN 服务器, 可以考虑Coturn(https://github.com/coturn/coturn) */
         iceServers: iceServers
       };
-      socket.emit("iceServers", response);
+      socket.emit("iceServers", room, response);
     });
   
     // Relay candidate messages
@@ -553,19 +552,26 @@ function startSocketIO(){
       Object.keys(io.sockets.adapter.rooms[room].sockets).forEach((id) => {
         if(id !== socket.id){
           console.log(id);
-          io.to(id).emit('newCandidate', candidate)
+          io.to(id).emit('newCandidate', room, candidate)
         }
       })
     });
   
     // Relay offers
     socket.on("offer", function (offer, room) {
-      socket.to(room).emit("offer", offer);
+      console.log("send offer");
+      if(!io.sockets.adapter.rooms[room]) return;
+      Object.keys(io.sockets.adapter.rooms[room].sockets).forEach((id) => {
+        if(id !== socket.id){
+          console.log(id);
+          io.to(id).emit('offer', room, offer)
+        }
+      })
     });
   
     // Relay answers
     socket.on("answer", function (answer, room) {
-      socket.to(room).emit("answer", answer);
+      socket.to(room).emit("answer", room, answer);
     });
 
 
