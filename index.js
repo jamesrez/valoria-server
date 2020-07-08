@@ -511,67 +511,41 @@ function startSocketIO(){
 
     //NEW WEBRTC SOCKETS
     socket.on("Connect to User", function (d) {
-      //CREATE A RANDOM CONNECTION ID AND THEN SEND IT TO BOTH USERS
-      let connId = "VALCONNID:" + uuid();
-      console.log(connId)
       if(data.users[d.toUsername] && data.users[d.toUsername][d.toUserId]){
         let sockets = data.users[d.toUsername][d.toUserId].sockets;
-        Object.keys(sockets).forEach((id) => {
-          io.to(id).emit('Getting Connection', {userId: d.userId, connId: connId, streaming: d.streaming});
-        })
-      }
-      socket.emit("Getting Connection", {userId: d.toUserId, connId: connId, initiated: true, streaming: d.streaming});
-    });
-
-
-    socket.on("join", function (room) {
-      console.log(`A client joined the room ${room}`);
-      var clients = io.sockets.adapter.rooms[room];
-      var numClients = typeof clients !== "undefined" ? clients.length : 0;
-      socket.join(room);
-      console.log(`room ${room} Broadcasting ready message`);
-      if(numClients > 0){
-        socket.emit("ready", room)
-        socket.to(room).emit("ready", room);
+        let socketId = Object.keys(sockets)[0];
+        io.to(socketId).emit('Getting Connection', {userId: d.userId, username: d.username, socket: socket.id, streaming: d.streaming});
+        socket.emit("Getting Connection", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming});
       }
     });
 
-    socket.on("iceServers", function (room) {
-      var response = {
+
+    socket.on("join", function (toUserId, toUserSocket, fromUserId) {
+      socket.emit("ready", toUserId)
+      io.to(toUserSocket).emit("ready", fromUserId);
+    });
+
+    socket.on("iceServers", function (userId) {
+      var servers = {
         /* Notice: 这边需要添加自己的 STUN/TURN 服务器, 可以考虑Coturn(https://github.com/coturn/coturn) */
         iceServers: iceServers
       };
-      socket.emit("iceServers", room, response);
+      socket.emit("iceServers", userId, servers);
     });
   
     // Relay candidate messages
-    socket.on("candidate", function (candidate, room) {
-      console.log(room);
-      console.log(candidate)
-      if(!io.sockets.adapter.rooms[room]) return;
-      Object.keys(io.sockets.adapter.rooms[room].sockets).forEach((id) => {
-        if(id !== socket.id){
-          console.log(id);
-          io.to(id).emit('newCandidate', room, candidate)
-        }
-      })
+    socket.on("candidate", function (userId, socketId, candidate) {
+      io.to(socketId).emit('newCandidate', userId, candidate);
     });
   
     // Relay offers
-    socket.on("offer", function (offer, room) {
-      console.log("send offer");
-      if(!io.sockets.adapter.rooms[room]) return;
-      Object.keys(io.sockets.adapter.rooms[room].sockets).forEach((id) => {
-        if(id !== socket.id){
-          console.log(id);
-          io.to(id).emit('offer', room, offer)
-        }
-      })
+    socket.on("offer", function (userId, socketId, offer) {
+      io.to(socketId).emit('offer', userId, offer);
     });
   
     // Relay answers
-    socket.on("answer", function (answer, room) {
-      socket.to(room).emit("answer", room, answer);
+    socket.on("answer", function (userId, socketId, answer) {
+      io.to(socketId).emit("answer", userId, answer);
     });
 
 

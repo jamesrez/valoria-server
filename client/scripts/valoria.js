@@ -167,7 +167,6 @@
       this.localStream;
       this.onCallIncoming;
       this.onCallAnswered;
-      this.connected = false;
       this.willInitiateCall = false;
       this.localICECandidates = [];
       this.peerConnection;
@@ -175,10 +174,11 @@
   
       this.socket.on('Getting Connection', (d) => {
         if(d.initiated){
-          this.conns[d.connId] = {
-            id: d.connId,
+          this.conns[d.userId] = {
             connected: false,
-            users: {[d.userId] : d.userId},
+            userId: d.userId,
+            username: d.username,
+            socket: d.socket,
             initiated: true,
             localICECandidates: []
           };
@@ -190,45 +190,46 @@
             })
             .then((stream) => {
               this.localStream = stream;
-              this.socket.emit("join", d.connId);
+              this.socket.emit("join", d.userId, d.socket, this.user.id);
             })
           }else{
-            this.socket.emit("join", d.connId);
+            this.socket.emit("join", d.userId, d.socket, this.user.id);
           }
         }else if(d.streaming){
           this.onCallIncoming(d);
         }else{
-          this.conns[d.connId] = {
-            id: d.connId,
+          this.conns[d.userId] = {
+            userId: d.userId,
+            username: d.username,
+            socket: d.socket,
             connected: false,
-            users: {[d.userId] : d.userId},
             localICECandidates: []
           }
-          this.socket.emit("join", d.connId);
+          this.socket.emit("join", d.userId, this.user.id);
         }
       });
   
-      this.socket.on("offer", (connId, offer) => {
-        this.conns[connId].offer = offer;
-        this.socket.emit("iceServers", connId);
+      this.socket.on("offer", (userId, offer) => {
+        this.conns[userId].offer = offer;
+        this.socket.emit("iceServers", userId);
       });
-      this.socket.on("answer", (connId, answer) => {
-        this.onAnswer(connId, answer, this);
+      this.socket.on("answer", (userId, answer) => {
+        this.onAnswer(userId, answer, this);
       });
-      this.socket.on("ready", (connId, initiated) => {
-        this.socket.emit("iceServers", connId);
+      this.socket.on("ready", (userId) => {
+        this.socket.emit("iceServers", userId);
       });
-      this.socket.on("iceServers", (connId, servers) => {
-        if(!this.conns[connId].initiated){
-          if(!this.conns[connId].peerConnection && this.conns[connId].offer){
-            this.onIceServers(connId, servers, this.createAnswer);
+      this.socket.on("iceServers", (userId, servers) => {
+        if(!this.conns[userId].initiated){
+          if(!this.conns[userId].peerConnection && this.conns[userId].offer){
+            this.onIceServers(userId, servers, this.createAnswer);
           }
         }else{
-          this.onIceServers(connId, servers, this.createOffer);
+          this.onIceServers(userId, servers, this.createOffer);
         }
       });
-      this.socket.on("newCandidate", (connId, candidate) => {
-        this.onCandidate(connId, candidate, this)
+      this.socket.on("newCandidate", (userId, candidate) => {
+        this.onCandidate(userId, candidate, this)
       });
   
     }
@@ -414,24 +415,26 @@
       });
     }
   
-    onIceServers (connId, turn, callback) {
+    onIceServers (userId, turn, callback) {
       const socket = this.socket;
       const thisVal = this;
-      thisVal.conns[connId].peerConnection = new RTCPeerConnection({
+      const userSocket = this.conns[userId].socket;
+      thisVal.conns[userId].peerConnection = new RTCPeerConnection({
         iceServers: turn.iceServers,
       });
       if(thisVal.localStream){
         thisVal.localStream.getTracks().forEach(function (track) {
-          thisVal.conns[connId].peerConnection.addTrack(track, thisVal.localStream);
+          thisVal.conns[userId].peerConnection.addTrack(track, thisVal.localStream);
         });
       }
-      let dataChannel = thisVal.conns[connId].peerConnection.createDataChannel("chat", {
+      let dataChannel = thisVal.conns[userId].peerConnection.createDataChannel("chat", {
         negotiated: true,
         // both peers must have same id
         id: 0,
       });
       dataChannel.onopen = function (event) {
         console.log("dataChannel opened");
+        thisVal.conns[userId].dataChannel = dataChannel;
       };
       dataChannel.onmessage = function (event) {
         const receivedData = JSON.parse(event.data);
@@ -443,71 +446,72 @@
         }
       };
   
-      thisVal.conns[connId].peerConnection.valoria = thisVal;
-      thisVal.conns[connId].peerConnection.onicecandidate = (event) => {
+      thisVal.conns[userId].peerConnection.valoria = thisVal;
+      thisVal.conns[userId].peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
-          if (thisVal.conns[connId].connected) {
+          if (thisVal.conns[userId].connected) {
             socket.emit(
               "candidate",
-              JSON.stringify(event.candidate),
-              connId
+              thisVal.user.id,
+              userSocket,
+              JSON.stringify(event.candidate)
             );
           } else {
-            thisVal.conns[connId].localICECandidates.push(event.candidate);
+            thisVal.conns[userId].localICECandidates.push(event.candidate);
           }
         }
       }
-      thisVal.conns[connId].peerConnection.ontrack = (event) => {
+      thisVal.conns[userId].peerConnection.ontrack = (event) => {
         thisVal.onCallAnswered(event.streams[0])
-        thisVal.conns[connId].remoteStream = event.streams[0];
-        thisVal.conns[connId].connected = true;
+        thisVal.conns[userId].remoteStream = event.streams[0];
+        thisVal.conns[userId].connected = true;
       }
   
-      thisVal.conns[connId].peerConnection.oniceconnectionstatechange = function (event) {
-        switch (thisVal.conns[connId].peerConnection.iceConnectionState) {
+      thisVal.conns[userId].peerConnection.oniceconnectionstatechange = function (event) {
+        switch (thisVal.conns[userId].peerConnection.iceConnectionState) {
           case "connected":
             break;
           case "disconnected":
           case "failed":
-            thisVal.createOffer(thisVal, connId)
+            thisVal.createOffer(thisVal, userId)
             break;
           case "closed":
             break;
         }
       };
       if(callback && typeof callback === 'function'){
-        callback(thisVal, connId);
+        callback(thisVal, userId);
       }
     }
   
-    onCandidate(connId, event, thisVal) {
+    onCandidate(userId, event, thisVal) {
       event = JSON.parse(event);
       let rtcCandidate = new RTCIceCandidate(event);
-      thisVal.conns[connId].peerConnection.addIceCandidate(rtcCandidate);
+      thisVal.conns[userId].peerConnection.addIceCandidate(rtcCandidate);
     }
   
-    createOffer(thisVal, connId){
+    createOffer(thisVal, userId){
       const socket = thisVal.socket;
-      const peerConnection = thisVal.conns[connId].peerConnection;
+      const peerConnection = thisVal.conns[userId].peerConnection;
       peerConnection.createOffer(
         function (offer) {
           peerConnection.setLocalDescription(offer);
-          socket.emit("offer", JSON.stringify(offer), connId);
+          socket.emit("offer", thisVal.user.id, thisVal.conns[userId].socket, JSON.stringify(offer));
         },
         function (err) {
         }
       );
     }
   
-    createAnswer(thisVal, connId) {
-      const peerConnection = thisVal.conns[connId].peerConnection;
+    createAnswer(thisVal, userId) {
+      const peerConnection = thisVal.conns[userId].peerConnection;
       const socket = thisVal.socket;
-      let rtcOffer = new RTCSessionDescription(JSON.parse(thisVal.conns[connId].offer));
+      let rtcOffer = new RTCSessionDescription(JSON.parse(thisVal.conns[userId].offer));
       peerConnection.setRemoteDescription(rtcOffer);
       peerConnection.createAnswer(
         function (answer) {
           peerConnection.setLocalDescription(answer);
-          socket.emit("answer", JSON.stringify(answer), connId);
+          socket.emit("answer", thisVal.user.id, thisVal.conns[userId].socket, JSON.stringify(answer));
         },
         function (err) {
           console.log(err);
@@ -515,15 +519,15 @@
       );
     }
   
-    onAnswer(connId, answer, thisVal) {
+    onAnswer(userId, answer, thisVal) {
       const socket = thisVal.socket;
-      const peerConnection = thisVal.conns[connId].peerConnection;
+      const peerConnection = thisVal.conns[userId].peerConnection;
       var rtcAnswer = new RTCSessionDescription(JSON.parse(answer));
       peerConnection.setRemoteDescription(rtcAnswer);
-      thisVal.conns[connId].localICECandidates.forEach((candidate) => {        
-        socket.emit("candidate", JSON.stringify(candidate), connId);
+      thisVal.conns[userId].localICECandidates.forEach((candidate) => {        
+        socket.emit("candidate", thisVal.user.id, thisVal.conns[userId].socket, JSON.stringify(candidate));
       });
-      thisVal.conns[connId].localICECandidates = [];
+      thisVal.conns[userId].localICECandidates = [];
     }
   
     call(userId, myStream, cb){
@@ -532,7 +536,8 @@
           cb(stream)
         }
       }
-      this.socket.emit('Connect to User', {toUserId: userId, userId: this.user.id, toUsername: this.onlinePeers[userId].username, streaming: true});
+      const thisVal = this;
+      this.socket.emit('Connect to User', {toUserId: userId, userId: this.user.id, toUsername: this.onlinePeers[userId].username, username: this.user.username, streaming: true});
     }
   
     answer(d, cb){
@@ -548,13 +553,14 @@
       })
       .then((stream) => {
         this.localStream = stream;
-        this.conns[d.connId] = {
-          id: d.connId,
+        this.conns[d.userId] = {
+          userId: d.userId,
+          username: d.username,
+          socket: d.socket,
           connected: false,
-          users: {[d.userId] : d.userId},
           localICECandidates: []
         }
-        this.socket.emit("join", d.connId);
+        this.socket.emit("join", d.userId, d.socket, this.user.id);
       })
     }
   
@@ -664,12 +670,17 @@
         Object.keys(thisD.user.valoria.user.sockets).forEach((id) => {
           //ATTEMPT TO ASK USER THROUGH PEER TO PEER CONNECTION
           if(thisD.user.id !== thisVal.user.id){
-            thisVal.user.sockets[id].emit('Connect to User', {
-              toUserId: thisD.user.id,
-              userId: thisVal.user.id,
-              toUsername: thisVal.onlinePeers[thisD.user.id].username,
-              streaming: false
-            });
+            if(thisVal.conns[thisD.user.id] && thisVal.conns[thisD.user.id].dataChannel){
+              console.log("ALREADY HAVE P2P CONNECTION");
+            }else{
+              thisVal.user.sockets[id].emit('Connect to User', {
+                toUserId: thisD.user.id,
+                userId: thisVal.user.id,
+                toUsername: thisVal.onlinePeers[thisD.user.id].username,
+                username: thisVal.user.username,
+                streaming: false
+              });
+            }
           }
           //ASK VALORIA SERVER
           thisVal.user.sockets[id].emit("Get User Data", {username: thisD.user.username, userId: thisD.user.id, path: thisD.path});
