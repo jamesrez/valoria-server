@@ -515,7 +515,7 @@ function startSocketIO(){
         let sockets = data.users[d.toUsername][d.toUserId].sockets;
         let socketId = Object.keys(sockets)[0];
         io.to(socketId).emit('Getting Connection', {userId: d.userId, username: d.username, socket: socket.id, streaming: d.streaming});
-        socket.emit("Getting Connection", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming});
+        socket.emit("Getting Connection", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath});
       }
     });
 

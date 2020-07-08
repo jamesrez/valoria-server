@@ -164,6 +164,7 @@
       this.users = {};
       this.datas = {};
       this.conns = {};
+      this.ons = {};
       this.localStream;
       this.onCallIncoming;
       this.onCallAnswered;
@@ -180,7 +181,8 @@
             username: d.username,
             socket: d.socket,
             initiated: true,
-            localICECandidates: []
+            localICECandidates: [],
+            dataPath: d.dataPath
           };
           if(d.streaming){
             navigator.mediaDevices
@@ -396,7 +398,7 @@
           dimension: user.dimension,
           valoria: this
         });
-        localforage.setItem(`user/${user.id}`, user);
+        localforage.setItem(`user.${user.id}`, user);
         if(user && cb && typeof cb === 'function') cb(thisVal.users[user.id]);
       })
     }
@@ -435,14 +437,29 @@
       dataChannel.onopen = function (event) {
         console.log("dataChannel opened");
         thisVal.conns[userId].dataChannel = dataChannel;
+        if(thisVal.datas[thisVal.conns[userId].dataPath]){
+          thisVal.datas[thisVal.conns[userId].dataPath].onPeerConnected(thisVal.conns[userId]);
+        }
       };
       dataChannel.onmessage = function (event) {
-        const receivedData = JSON.parse(event.data);
-  
-        const dataType = receivedData.type;
-        const cleanedMessage = receivedData.data;
-        if (dataType === "msg") {
-          handleRecieveMessage(cleanedMessage);
+        const data = JSON.parse(event.data);  
+        if(data.type === 'on' && data.path){
+          if(!thisVal.ons[data.path]) thisVal.ons[data.path] = {};
+          thisVal.ons[data.path][data.userId] = thisVal.conns[userId];
+          localforage.getItem(`user.${data.path}`).then((d) => {
+            console.log("ON: ", data.path);
+            console.log(d)
+            const data2Send = {
+              type: "onAnswer",
+              path: data.path,
+              userId : thisVal.user.id,
+              value: d
+            }
+            dataChannel.send(JSON.stringify(data2Send));
+          })
+        }
+        if(data.type === 'onAnswer' && data.path && thisVal.datas[data.path]){
+          thisVal.datas[data.path].onNew(data.value)
         }
       };
   
@@ -604,6 +621,7 @@
       this.value = d.value;
       this.user = d.user;
       this.onNew;
+      this.onPeerConnected;
     }
   
     get(key){
@@ -631,11 +649,60 @@
     saveDataToPath(value){
       let data = this.user.data;
       let path = this.path;
+      let uniquePath = this.user.id;
       for (var i=0, pathArr=path.substr(1).split('.'), len=pathArr.length; i<len; i++){
-        data[pathArr[i]] = (i === len - 1) ?  value : {};
-        data = data[pathArr[i]];
+        if(i === len - 1){
+          data[pathArr[i]] = value;
+          if(this.user.valoria.ons[uniquePath] && typeof this.user.valoria.ons[uniquePath] === 'object') {
+            const data2Send = {
+              type: "onAnswer",
+              path: uniquePath,
+              userId : this.user.id,
+              value: data
+            }
+            Object.keys(this.user.valoria.ons[uniquePath]).forEach((connId) => {  
+              this.user.valoria.conns[connId].dataChannel.send(JSON.stringify(data2Send));
+            })
+          }
+        }else{
+          data[pathArr[i]] = data[pathArr[i]] || {};
+          if(data && typeof data === 'object'){
+            let data2SendValue = {};
+            Object.assign(data2SendValue, data);
+            Object.keys(data2SendValue).forEach((key) => {
+              if(data2SendValue[key] && typeof data2SendValue[key] === 'object'){
+                data2SendValue[key] = {};
+              }
+            })
+            if(this.user.valoria.ons[uniquePath] && typeof this.user.valoria.ons[uniquePath] === 'object') {
+              const data2Send = {
+                type: "onAnswer",
+                path: uniquePath,
+                userId : this.user.id,
+                value: data2SendValue
+              }
+              Object.keys(this.user.valoria.ons[uniquePath]).forEach((connId) => {  
+                this.user.valoria.conns[connId].dataChannel.send(JSON.stringify(data2Send));
+              })
+            }
+          }else{
+            if(this.user.valoria.ons[uniquePath] && typeof this.user.valoria.ons[uniquePath] === 'object') {
+              const data2Send = {
+                type: "onAnswer",
+                path: uniquePath,
+                userId : this.user.id,
+                value: data
+              }
+              Object.keys(this.user.valoria.ons[uniquePath]).forEach((connId) => {  
+                this.user.valoria.conns[connId].dataChannel.send(JSON.stringify(data2Send));
+              })
+            }
+          }
+          data = data[pathArr[i]];
+        }
+        uniquePath += "." + pathArr[i];
       }
-      localforage.setItem(`user/${this.user.id}/${this.path}`, value);
+      localforage.setItem(`user.${this.user.id}${this.path}`, value);
     }
   
     async set(d){
@@ -655,10 +722,12 @@
       //LOOKUP LOCAL USER DATA
       const thisD = this;
       const thisVal = thisD.user.valoria;
-      localforage.getItem(`user/${this.user.id}/${this.path}`).then((d) => {
+      localforage.getItem(`user.${this.user.id}${this.path}`).then((d) => {
+
         if(d && cb && typeof cb === 'function'){
           cb(d);
         }
+
         thisD.onNew = (d) => {
           if(thisD.value === d) return;
           thisD.value = d;
@@ -672,14 +741,30 @@
           if(thisD.user.id !== thisVal.user.id){
             if(thisVal.conns[thisD.user.id] && thisVal.conns[thisD.user.id].dataChannel){
               console.log("ALREADY HAVE P2P CONNECTION");
+              const data = {
+                type: 'on',
+                path: thisD.user.id + thisD.path,
+                userId: thisVal.user.id
+              }
+              thisVal.conns[thisD.user.id].dataChannel.send(JSON.stringify(data));
             }else{
               thisVal.user.sockets[id].emit('Connect to User', {
                 toUserId: thisD.user.id,
                 userId: thisVal.user.id,
                 toUsername: thisVal.onlinePeers[thisD.user.id].username,
                 username: thisVal.user.username,
-                streaming: false
+                streaming: false,
+                dataPath: thisD.user.id + thisD.path
               });
+              thisD.onPeerConnected = (conn) => {
+                if(!conn || !conn.dataChannel) return;
+                const data = {
+                  type: 'on',
+                  path: conn.dataPath,
+                  userId: thisVal.user.id
+                }
+                conn.dataChannel.send(JSON.stringify(data));
+              }
             }
           }
           //ASK VALORIA SERVER
