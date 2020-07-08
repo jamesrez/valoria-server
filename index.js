@@ -193,7 +193,7 @@ function startSocketIO(){
   io.on('connection', function (socket) {
 
     socket.on('Create User', (d) => {
-      if(!data.users[d.userName]){
+      if(!data.users[d.username]){
         data.users[d.username] = {};
       }
       if(!data.users[d.username][d.userId]){
@@ -204,8 +204,8 @@ function startSocketIO(){
           peers: {},
           sockets: {},
           name: d.username,
-          eKey: d.eKey,
-          keyPair: d.keyPair,
+          ecdsaPair: d.ecdsaPair,
+          ecdhPair: d.ecdhPair,
           dimension: dimension
         }
         data.users[d.username][d.userId].peers[d.peerId] = d.peerId;
@@ -257,7 +257,7 @@ function startSocketIO(){
       if(data.users[d.username] && data.users[d.username][d.userId]){
         const publicKey = await crypto.subtle.importKey(
           "jwk", 
-          JSON.parse(data.users[d.username][d.userId].keyPair.publicKey), {
+          JSON.parse(data.users[d.username][d.userId].ecdsaPair.publicKey), {
           name: "ECDSA",
           namedCurve: "P-384"
         }, true, ['verify']);
