@@ -124,6 +124,9 @@ async function connectToPeer(peer){
     let loaded = {};
     let allMsgs = [];
     function getMsgsOfUser(data, username){
+      data.getEncryptionKey((key) => {
+        console.log("ON PAGE: ", key);
+      })
       data.on((msgTimes) => {
         if(msgTimes && typeof msgTimes === 'object'){
           Object.keys(msgTimes).forEach((time) => {

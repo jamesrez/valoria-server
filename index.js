@@ -191,6 +191,8 @@ function base64ToArrayBuffer(dataUrl, cb) {
 function startSocketIO(){
   io.on('connection', function (socket) {
 
+    //MAKE SURE EACH ROUTE THAT NEEDS AUTHENTICATION USES VERIFY FROM A SIGNATURE
+
     socket.on('Create User', (d) => {
       let user;
       const dimension = d.dimension || "valoria";
@@ -223,7 +225,8 @@ function startSocketIO(){
           ecdsaPair: d.ecdsaPair,
           ecdhPair: d.ecdhPair,
           dimension: dimension,
-          data : {}
+          data : {},
+          keys: {}
         }
         if(!data.usernames[d.username]) data.usernames[d.username] = {};
         data.usernames[d.username][d.userId] = {
@@ -484,6 +487,39 @@ function startSocketIO(){
         socket.emit("Get User Data", {data: thisData, path: uniquePath});
       })
     })
+
+    socket.on("Get Key from Path", async (d) => {
+      getUserById(d.userId, (user) => {
+        if(!user || !user.keys) {
+          socket.emit("Get Key from Path", {err: "No Key Found", key: null, path: d.path, userId: d.userId});
+        }
+        const uniquePath = d.userId + d.path;
+        const thisKey = user.keys[uniquePath];
+        if(!thisKey || !thisKey[d.keyUser]) {
+          socket.emit("Get Key from Path", {err: "No Key Found", key: null, path: d.path, userId: d.userId});
+        }
+        socket.emit("Get Key from Path", {key: thisKey[d.keyUser], path: d.path, userId: d.userId});
+      })
+    })
+
+    socket.on('Save Key to Path', async (d) => {
+      getUserById(d.userId, (user) => {
+        if(!user) return;
+        const uniquePath = d.userId + d.path;
+        const thisKey = user.keys[uniquePath];
+        if(!thisKey) thisKey = {};
+        thisKey[keyUser] = d.key
+        if(!process.env.AWS_ACCESS_KEY_ID){
+          fs.writeFile(`./data/${d.userId}.json`, JSON.stringify(user, null, 2), function (err) {
+            if (err) return console.log(err);
+          });
+        } else {
+          s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`, Body : JSON.stringify(user, null, 2)}, (err, fileData) => {
+            if (err) console.error(`Upload Error ${err}`);
+          });
+        }
+      })
+    });
 
     // socket.on("Signal WebRTC Info to User", (d) => {
     //   if(data.users[d.toUsername] && data.users[d.toUsername][d.toUserId]){

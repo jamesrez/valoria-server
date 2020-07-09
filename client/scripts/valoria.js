@@ -28,7 +28,7 @@
         cb(new Uint8Array(buffer));
       });
   }
-
+  
   function arrayBufferToBase64( buffer ) {
     var binary = '';
     var bytes = new Uint8Array( buffer );
@@ -37,8 +37,8 @@
         binary += String.fromCharCode( bytes[ i ] );
     }
     return window.btoa( binary );
-}
-
+  }
+  
   function ab2str(buf) {
     return String.fromCharCode.apply(null, new Uint16Array(buf));
   }
@@ -144,7 +144,7 @@
       ["sign"]               // key usages for key to unwrap
     );
   }
-
+  
   async function unwrapECDHKeyGCM(wrappedKey, keyMaterial, salt, iv) {
     const unwrappingKey = await getKeyGCM(keyMaterial, salt);
     return window.crypto.subtle.unwrapKey(
@@ -312,9 +312,9 @@
         const keyMaterial = await getKeyMaterial(password);
         const iv = window.crypto.getRandomValues(new Uint8Array(12));
         wrapCryptoKeyGCM(ecdhPair.privateKey, salt, keyMaterial, iv, async (ecdhPrivWrapped) => {
-          const ecdhPubRaw = await window.crypto.subtle.exportKey("raw", ecdhPair.publicKey);
+          const ecdhPubRaw = await window.crypto.subtle.exportKey("jwk", ecdhPair.publicKey);
           let ecdhPair2Save = {}
-          ecdhPair2Save.publicKey = "data:application/octet-binary;base64," + arrayBufferToBase64(ecdhPubRaw)
+          ecdhPair2Save.publicKey = JSON.stringify(await window.crypto.subtle.exportKey("jwk", ecdhPair.publicKey));
           ecdhPair2Save.privateKey = JSON.stringify({wrapped : ecdhPrivWrapped, salt: salt, iv: iv});
           wrapCryptoKeyGCM(ecdsaPair.privateKey, salt, keyMaterial, iv, async (ecdsaPrivWrapped) => {
             let ecdsaPair2Save = {};
@@ -335,6 +335,7 @@
                   // thisValoria.createPeerConnection();
                   thisValoria.getOnlinePeers();
                   thisValoria.onData();
+                  thisValoria.onKey();
                   cb(thisValoria.user);
                 }
               }
@@ -358,59 +359,59 @@
         const salt = Uint8Array.from(Object.values(JSON.parse(d.ecdsaPair.privateKey).salt));
         const iv = Uint8Array.from(Object.values(JSON.parse(d.ecdsaPair.privateKey).iv));
         const keyMaterial = await getKeyMaterial(password);
-        const ecdsaJSON = JSON.parse(d.ecdsaPair.publicKey);
+        const ecdsaPubJSON = JSON.parse(d.ecdsaPair.publicKey);
         d.ecdsaPair.publicKey = await window.crypto.subtle.importKey(
           "jwk", 
-          ecdsaJSON, {
+          ecdsaPubJSON, {
           name: "ECDSA",
           namedCurve: "P-384"
         }, true, ['verify']);
         base64ToArrayBuffer(JSON.parse(d.ecdsaPair.privateKey).wrapped, async (ecdsaPrivKeyBuffer) => {
           d.ecdsaPair.privateKey = await unwrapECDSAKeyGCM(ecdsaPrivKeyBuffer, keyMaterial, salt, iv);
-          base64ToArrayBuffer(d.ecdhPair.publicKey, async (ecdhPubAb) => {
-            d.ecdhPair.publicKey = await window.crypto.subtle.importKey(
-              "raw", 
-              ecdhPubAb, {
-              name: "ECDH",
-              namedCurve: "P-384"
-            }, true, []);
-            base64ToArrayBuffer(JSON.parse(d.ecdhPair.privateKey).wrapped, async (ecdhPrivKeyBuffer) => {
-              d.ecdhPair.privateKey = await unwrapECDHKeyGCM(ecdhPrivKeyBuffer, keyMaterial, salt, iv);
-              let enc = new TextEncoder();
-              let encoded = enc.encode("Glory to Valoria");
-              const signature = await window.crypto.subtle.sign({
-                name: "ECDSA",
-                hash: {name: "SHA-384"},
-              }, d.ecdsaPair.privateKey, encoded);
-              thisValoria.user = new ValoriaUser({
-                username: username,
-                id: userId,
-                ecdsaPair: d.ecdsaPair,
-                ecdhPair: d.ecdhPair,
-                sockets: {[socket] : socket},
-                dimension: dimension,
-                valoria: thisValoria
-              });
-              socket.emit("Login User", {userId, username, signature, encoded});
-              socket.on("Login User", async (d) => {
-                if(d.err){
-                  console.log("COULD NOT AUTHENTICATE USER");
-                }else {
-                  if(cb && typeof cb === 'function'){
-                    thisValoria.getOnlinePeers();
-                    thisValoria.onData();
-                    cb(thisValoria.user);
-                  }
+          const ecdhPubJSON = JSON.parse(d.ecdhPair.publicKey);
+          d.ecdhPair.publicKey = await window.crypto.subtle.importKey(
+            "jwk", 
+            ecdsaPubJSON, {
+            name: "ECDSA",
+            namedCurve: "P-384"
+          }, true, ['verify']);
+          base64ToArrayBuffer(JSON.parse(d.ecdhPair.privateKey).wrapped, async (ecdhPrivKeyBuffer) => {
+            d.ecdhPair.privateKey = await unwrapECDHKeyGCM(ecdhPrivKeyBuffer, keyMaterial, salt, iv);
+            let enc = new TextEncoder();
+            let encoded = enc.encode("Glory to Valoria");
+            const signature = await window.crypto.subtle.sign({
+              name: "ECDSA",
+              hash: {name: "SHA-384"},
+            }, d.ecdsaPair.privateKey, encoded);
+            thisValoria.user = new ValoriaUser({
+              username: username,
+              id: userId,
+              ecdsaPair: d.ecdsaPair,
+              ecdhPair: d.ecdhPair,
+              sockets: {[socket] : socket},
+              dimension: dimension,
+              valoria: thisValoria
+            });
+            socket.emit("Login User", {userId, username, signature, encoded});
+            socket.on("Login User", async (d) => {
+              if(d.err){
+                console.log("COULD NOT AUTHENTICATE USER");
+              }else {
+                if(cb && typeof cb === 'function'){
+                  thisValoria.getOnlinePeers();
+                  thisValoria.onData();
+                  thisValoria.onKey();
+                  cb(thisValoria.user);
                 }
-              });
-            })
-          });
+              }
+            });
+          })
           
           // AES-GCM KEY UNWRAP
           // base64ToArrayBuffer(JSON.parse(d.eKey).val, async (eKeyBuffer) => {
           //   d.eKey = await unwrapSecretKeyKW(eKeyBuffer, keyMaterial, salt);
           // });
-
+  
         });
       });
     }
@@ -479,7 +480,23 @@
         });
       });
     }
-  
+
+    onKey(){
+      Object.keys(this.user.sockets).forEach((id) => {
+        this.user.sockets[id].on('Get Key from Path', (d) => {
+          let vData = this.datas[d.userId + d.path];
+          // if(d.key){
+          //   console.log("Got Key");
+          //   console.log(d.key)
+          //   // vData.saveDataToPath(d.data);
+          // }
+          if(vData.onKey && typeof vData.onKey === 'function'){
+            vData.onKey(d);
+          }
+        });
+      });
+    }
+
     onIceServers (userId, turn, callback) {
       const socket = this.socket;
       const thisVal = this;
@@ -510,8 +527,6 @@
           if(!thisVal.ons[data.path]) thisVal.ons[data.path] = {};
           thisVal.ons[data.path][data.userId] = thisVal.conns[userId];
           localforage.getItem(`user.${data.path}`).then((d) => {
-            console.log("ON: ", data.path);
-            console.log(d)
             const data2Send = {
               type: "onAnswer",
               path: data.path,
@@ -523,6 +538,21 @@
         }
         if(data.type === 'onAnswer' && data.path && thisVal.datas[data.path]){
           thisVal.datas[data.path].onNew(data.value)
+        }
+        if(data.type === 'getKey'){
+          localforage.getItem(`keys.user.${data.path}.${data.keyUser}`).then((d) => {
+            if(d) dataChannel.send({
+              type: 'onKey',
+              path: data.path,
+              userId: data.userId,
+              keyUser: data.keyUser,
+              key: d
+            })
+          })
+        }
+        if(data.type === 'onKey' && data.path && thisVal.datas[data.path]){
+          console.log("RECEIVED KEY FROM P2P: ", data.key);
+          thisVal.data[data.path].onKey(data.key)
         }
       };
   
@@ -664,6 +694,7 @@
       this.ecdhPair = u.ecdhPair;
       this.data = u.data || {};
       this.valoria = u.valoria;
+      this.keys = u.keys || {};
     }
   
     get(key){
@@ -684,6 +715,7 @@
       this.value = d.value;
       this.user = d.user;
       this.onNew;
+      this.onKey;
       this.onPeerConnected;
     }
   
@@ -768,7 +800,10 @@
       localforage.setItem(`user.${this.user.id}${this.path}`, value);
     }
   
-    async set(d){
+    async set(d, opts={}){
+      if(opts.encrypt){
+
+      }
       this.value = d;
       this.saveDataToPath(d);
       Object.keys(this.user.valoria.user.sockets).forEach((id) => {
@@ -782,15 +817,14 @@
     }
   
     async on(cb){
-      //LOOKUP LOCAL USER DATA
       const thisD = this;
       const thisVal = thisD.user.valoria;
       localforage.getItem(`user.${this.user.id}${this.path}`).then((d) => {
-
+  
         if(d && cb && typeof cb === 'function'){
           cb(d);
         }
-
+  
         thisD.onNew = (d) => {
           if(thisD.value === d) return;
           thisD.value = d;
@@ -798,7 +832,7 @@
             cb(d);
           }
         };
-
+  
         Object.keys(thisD.user.valoria.user.sockets).forEach((id) => {
           //ATTEMPT TO ASK USER THROUGH PEER TO PEER CONNECTION
           if(thisD.user.id !== thisVal.user.id){
@@ -834,6 +868,126 @@
           thisVal.user.sockets[id].emit("Get User Data", {username: thisD.user.username, userId: thisD.user.id, path: thisD.path});
         });
       })
+    }
+
+    async getEncryptionKey(cb){
+      const thisD = this;
+      const thisVal = thisD.user.valoria;
+      const socket = thisVal.socket;
+      localforage.getItem(`keys.user.${this.user.id}${this.path}.${thisVal.user.id}`).then((d) => {
+
+        if(d && cb && typeof cb === 'function'){
+          cb(d);
+        }
+
+        thisD.onKey = async (d) => {
+          if(d && d.key){
+            if(thisD.key === d) return;
+            thisD.key = d;
+            if(cb && typeof cb === 'function'){
+              cb(d);
+            }
+          }else if(d.userId === thisVal.user.id){
+            //CREATE THE KEY 
+            thisD.key = await window.crypto.subtle.generateKey(
+              {
+                name: "ECDH",
+                namedCurve: "P-384"
+              },
+              true,
+              ["deriveKey", "deriveBits"]
+            );
+            const key2Send = {};
+            key2Send.publicKey = await crypto.subtle.exportKey('jwk', thisD.key.publicKey);
+            key2Send.privateKey = await crypto.subtle.exportKey('jwk', thisD.key.privateKey);
+            //DERIVE ENCRYPTION KEY 
+            const eKey = await crypto.subtle.deriveKey(
+              {
+                name: 'ECDH',
+                public: thisD.key.publicKey
+              },
+              thisVal.user.ecdhPair.privateKey,
+              {
+                name: 'AES-GCM',
+                length: 256
+              },
+              true,
+              ["encrypt", "decrypt"]
+            )
+            //ENCRYPT THE PRIVATE KEY
+            var enc = new TextEncoder(); // always utf-8
+            key2Send.privateKey = enc.encode(key2Send.privateKey);
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+            key2Send.privateKey = await crypto.subtle.encrypt({
+              name: 'AES-GCM',
+              iv: iv
+            }, eKey, key2Send.privateKey);
+            key2Send.privateKey = arrayBufferToBase64(key2Send.privateKey);
+            //SAVE KEY TO PATH
+            localforage.setItem(`keys.user.${this.user.id}${this.path}.${thisVal.user.id}`, key2Send);
+            socket.emit("Save Key to Path", {
+              keyUser : thisVal.user.id,
+              userId : thisVal.user.id,
+              path: this.path,
+              key: key2Send
+            })
+          }else{
+            console.log("Could not find Key");
+          }
+        };
+  
+        Object.keys(thisD.user.valoria.user.sockets).forEach((id) => {
+
+          //ATTEMPT TO ASK USER THROUGH PEER TO PEER CONNECTION
+          if(thisD.user.id !== thisVal.user.id){
+            if(thisVal.conns[thisD.user.id] && thisVal.conns[thisD.user.id].dataChannel){
+              console.log("ALREADY HAVE P2P CONNECTION");
+              const data = {
+                type: 'getKey',
+                path: thisD.user.id + thisD.path,
+                userId: thisD.user.id,
+                keyUser: thisVal.user.id
+              }
+              thisVal.conns[thisD.user.id].dataChannel.send(JSON.stringify(data));
+            }else{
+              thisVal.user.sockets[id].emit('Connect to User', {
+                toUserId: thisD.user.id,
+                userId: thisVal.user.id,
+                toUsername: thisVal.onlinePeers[thisD.user.id].username,
+                username: thisVal.user.username,
+                streaming: false,
+                dataPath: thisD.user.id + thisD.path
+              });
+              thisD.onPeerConnected = (conn) => {
+                if(!conn || !conn.dataChannel) return;
+                const data = {
+                  type: 'getKey',
+                  path: conn.dataPath,
+                  userId: thisD.user.id,
+                  keyUser: thisVal.user.id
+                }
+                conn.dataChannel.send(JSON.stringify(data));
+              }
+            }
+          }
+          
+          //ASK VALORIA SERVER <-- SHOULD ONLY DO THIS IF CANT ESTABLISH P2P CONNECTION
+          thisVal.user.sockets[id].emit("Get Key from Path", {
+            userId: thisD.user.id,
+            path: thisD.path,
+            keyUser: thisVal.user.id
+          });
+
+        });
+      })
+    }
+
+    async shareEncryptionKey(userId){
+
+    }
+
+    async revokeEncryptionKey(userId){
+
     }
   
   }
