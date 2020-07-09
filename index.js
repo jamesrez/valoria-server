@@ -25,8 +25,7 @@ const AWS = require('aws-sdk');
 let s3 = null;
 let data = {
   online: {},
-  users: {},
-  peers: {},
+  usernames: {},
   dimensions: {}
 };
 
@@ -105,7 +104,7 @@ if(!process.env.AWS_ACCESS_KEY_ID){
   s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : "data.json"}, function(err, fileData) {
     if(err) {
       data = {
-        "users": {},
+        "usernames": {},
         "online": {},
         "peers": {},
         "dimensions": {}
@@ -193,39 +192,52 @@ function startSocketIO(){
   io.on('connection', function (socket) {
 
     socket.on('Create User', (d) => {
-      if(!data.users[d.username]){
-        data.users[d.username] = {};
+      let user;
+      const dimension = d.dimension || "valoria";
+      if(!process.env.AWS_ACCESS_KEY_ID){
+        try {
+         user = require(`./data/${d.userId}.json`);
+         if(user) {
+          socket.emit("Create User", {...d, err : "User already Exists"});
+          return;
+         }
+        } catch {
+          createUser();
+        }
+      } else {
+        s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`}, function(err, user) {
+          if(user && user.Body){
+            socket.emit("Create User", {...d, err : "User already Exists"});
+            return;
+          }
+          if(err) console.log("S3 Err: ", err);
+          createUser()
+        })
       }
-      if(!data.users[d.username][d.userId]){
-        const dimension = d.dimension || "valoria";
-        data.users[d.username][d.userId] = {
+      function createUser(){
+        user = {
           username : d.username,
           id: d.userId,
-          peers: {},
           sockets: {},
           name: d.username,
           ecdsaPair: d.ecdsaPair,
           ecdhPair: d.ecdhPair,
-          dimension: dimension
+          dimension: dimension,
+          data : {}
         }
-        data.users[d.username][d.userId].peers[d.peerId] = d.peerId;
-        data.users[d.username][d.userId].sockets[socket.id] = socket.id;
-        if(!data.dimensions[dimension]){
-          data.dimensions[dimension] = { peers: {}, sockets: {} };
-        }
-        data.dimensions[dimension].peers[d.peerId] = {
-          username : d.username,
-          userId : d.userId,
-          socket : socket.id,
+        if(!data.usernames[d.username]) data.usernames[d.username] = {};
+        data.usernames[d.username][d.userId] = {
+          id: d.userId
         };
+        if(!data.dimensions[dimension]){
+          data.dimensions[dimension] = { sockets: {} };
+        }
         data.dimensions[dimension].sockets[socket.id] = {
           username : d.username,
-          peerId : d.peerId,
           userId : d.userId,
         };
         data.online[socket.id] = {
           username : d.username,
-          peerId : d.peerId,
           userId : d.userId,
           dimension : dimension
         };
@@ -239,110 +251,156 @@ function startSocketIO(){
         saveData(data, () => {
           socket.emit("Create User", {success : true, ...d});
         });
-      }else {
-        socket.emit("Create User", {...d, err : "User already Exists"});
-      }
-    });
-  
-  
-    socket.on('Get User', (d) => {
-      if(data.users[d.username] && data.users[d.username][d.userId]){
-        socket.emit("Get User", data.users[d.username][d.userId]);
-      }else {
-        socket.emit("Get User", {...d, err : "User Does Not Exist"});
-      }
-    });
 
-    socket.on('Login User', async (d) => {
-      if(data.users[d.username] && data.users[d.username][d.userId]){
-        const publicKey = await crypto.subtle.importKey(
-          "jwk", 
-          JSON.parse(data.users[d.username][d.userId].ecdsaPair.publicKey), {
-          name: "ECDSA",
-          namedCurve: "P-384"
-        }, true, ['verify']);
-        d.encoded = Uint8Array.from(Object.values(d.encoded));
-        const isUser = await crypto.subtle.verify({
-          name: "ECDSA",
-          hash: {name: "SHA-384"},
-        }, publicKey, d.signature, d.encoded);
-        if(isUser){
-          const dimension = d.dimension || "valoria";
-          data.users[d.username][d.userId].peers[d.peerId] = d.peerId;
-          data.users[d.username][d.userId].sockets[socket.id] = socket.id;
-          data.users[d.username][d.userId].dimension = dimension;
-          if(!data.dimensions[dimension]){
-            data.dimensions[dimension] = { peers: {}, sockets: {} };
-          }
-          data.dimensions[dimension].peers[d.peerId] = {
-            username : d.username,
-            userId : d.userId,
-            socket : socket.id,
-          };
-          data.dimensions[dimension].sockets[socket.id] = {
-            username : d.username,
-            peerId : d.peerId,
-            userId : d.userId,
-          };
-          data.online[socket.id] = {
-            username : d.username,
-            peerId : d.peerId,
-            userId : d.userId,
-            dimension : dimension
-          };
-          Object.keys(data.dimensions[dimension].sockets).forEach((socketId) => {
-            io.to(socketId).emit("New Peer in Dimension", {
-              username : d.username,
-              userId : d.userId,
-              socket : socket.id,
-            });
-          })
-          saveData(data, () => {
-            socket.emit("Login User", {success : true, ...d});
+        if(!process.env.AWS_ACCESS_KEY_ID){
+          fs.writeFile(`./data/${d.userId}.json`, JSON.stringify(user, null, 2), function (err) {
+            if (err) return console.log(err);
+          });
+        } else {
+          s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`, Body : JSON.stringify(user, null, 2)}, (err, fileData) => {
+            if (err) console.error(`Upload Error ${err}`);
           });
         }
-      }else{
-        socket.emit("Login User", {...d, err : "User Does Not Exist"});
+      }   
+    });
+
+    function getUserById(id, cb){
+      let user;
+      if(!id || !cb || typeof cb !== 'function') return;
+      if(!process.env.AWS_ACCESS_KEY_ID){
+        try {
+         user = require(`./data/${id}.json`);
+         if(user) {
+          cb(user);
+         }else {
+           return
+         }
+        } catch {
+          return
+        }
+      } else {
+        s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${id}.json`}, function(err, user) {
+          if(user && user.Body){
+            user = JSON.parse(user.Body.toString());
+            cb(user);
+          }else{
+            return
+          }
+        })
       }
+    }
+  
+    socket.on('Get User', (d) => {
+      getUserById(d.userId, (user) => {
+        if(user){
+          socket.emit("Get User", user);
+        }else{
+          socket.emit("Get User", {...d, err : "User Does Not Exist"});
+        }
+      })
+    })
+
+    socket.on('Login User', async (d) => {
+      getUserById(d.userId, async (user) => {
+        if(user) {
+          const publicKey = await crypto.subtle.importKey(
+            "jwk", 
+            JSON.parse(user.ecdsaPair.publicKey), {
+            name: "ECDSA",
+            namedCurve: "P-384"
+          }, true, ['verify']);
+          d.encoded = Uint8Array.from(Object.values(d.encoded));
+          const isUser = await crypto.subtle.verify({
+            name: "ECDSA",
+            hash: {name: "SHA-384"},
+          }, publicKey, d.signature, d.encoded);
+          if(isUser){
+            const dimension = d.dimension || "valoria";
+            user.sockets[socket.id] = socket.id;
+            user.dimension = dimension;
+            if(!data.dimensions[dimension]){
+              data.dimensions[dimension] = {sockets: {} };
+            }
+            data.dimensions[dimension].sockets[socket.id] = {
+              username : d.username,
+              userId : d.userId,
+            };
+            data.online[socket.id] = {
+              username : d.username,
+              userId : d.userId,
+              dimension : dimension
+            };
+            Object.keys(data.dimensions[dimension].sockets).forEach((socketId) => {
+              io.to(socketId).emit("New Peer in Dimension", {
+                username : d.username,
+                userId : d.userId,
+                socket : socket.id,
+              });
+            })
+            saveData(data, () => {
+              socket.emit("Login User", {success : true, ...d});
+            });
+            if(!process.env.AWS_ACCESS_KEY_ID){
+              fs.writeFile(`./data/${d.userId}.json`, JSON.stringify(user, null, 2), function (err) {
+                if (err) return console.log(err);
+              });
+            } else {
+              s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`, Body : JSON.stringify(user, null, 2)}, (err, fileData) => {
+                if (err) console.error(`Upload Error ${err}`);
+              });
+            }
+          }
+        } else {
+          socket.emit("Login User", {...d, err : "User Does Not Exist"});
+        }
+      })
     })
 
     socket.on('disconnect', () => {
       if(data.online[socket.id]){
-        let username = data.online[socket.id].username;
-        let peerId = data.online[socket.id].peerId;
         let userId = data.online[socket.id].userId;
-        if(username && data.users[username] && userId && data.users[username][userId]){
-          delete data.users[username][userId].sockets[socket.id];
-          delete data.users[username][userId].peers[peerId];
-          let dimension = data.users[username][userId].dimension;
-          if(data.dimensions[dimension].peers[peerId]){
-            delete data.dimensions[dimension].peers[peerId];
+        getUserById(userId, (user) => {
+          if(user){
+            delete user.sockets[socket.id];
+            let dimension = user.dimension;
+            if(data.dimensions[dimension].sockets[socket.id]){
+              delete data.dimensions[dimension].sockets[socket.id];
+            }
+            Object.keys(data.dimensions[dimension].sockets).forEach((socketId) => {
+              io.to(socketId).emit("Peer Has Left Dimension", userId);
+            })
+            if(!process.env.AWS_ACCESS_KEY_ID){
+              fs.writeFile(`./data/${userId}.json`, JSON.stringify(user, null, 2), function (err) {
+                if (err) return console.log(err);
+              });
+            } else {
+              s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${userId}.json`, Body : JSON.stringify(user, null, 2)}, (err, fileData) => {
+                if (err) console.error(`Upload Error ${err}`);
+              });
+            }
           }
-          if(data.dimensions[dimension].sockets[socket.id]){
-            delete data.dimensions[dimension].sockets[socket.id];
-          }
-          Object.keys(data.dimensions[dimension].sockets).forEach((socketId) => {
-            io.to(socketId).emit("Peer Has Left Dimension", userId);
-          })
-        }
-        delete data.peers[peerId];
-        delete data.online[socket.id];
-        saveData(data);
+          delete data.online[socket.id];
+          saveData(data);
+        })
       }
     });
 
     socket.on("Get Peers in Dimension", (dimId) => {
       if(!dimId) dimId = 'valoria';
-      if(data.online[socket.id] && data.dimensions[dimId]){
-        socket.emit("Get Peers in Dimension", data.dimensions[dimId].sockets);
-      }else if(!data.dimensions[dimId]){
-        data.dimensions[dimId] = {sockets: {}};
-        saveData(data);
+      const dimension = data.dimensions[dimId];
+      if(dimension){
+        Object.keys(dimension.sockets).forEach((socketId) => {
+          if(!data.online[socketId]){
+            delete dimension.sockets[socketId]
+          }
+        })
+        socket.emit("Get Peers in Dimension", dimension.sockets);
+      }else {
+        dimension = {sockets: {}};
       }
+      saveData(data);
     })
 
-
-    //MUST FIX THIS
     function saveDataToPath(data, userId, path, value){
       let uniquePath = userId;
       for (var i=0, pathArr=path.substr(1).split('.'), len=pathArr.length; i<len; i++){
@@ -372,26 +430,25 @@ function startSocketIO(){
     socket.on("Save User Data", async (d) => {
       if(data.online[socket.id]){
         if(!process.env.AWS_ACCESS_KEY_ID){
-          let userData;
+          let user
           try {
-           userData = require(`./data/${d.userId}.json`);
+           user = require(`./data/${d.userId}.json`);
           } catch {
-            userData = {};
+            return;
           }
-          saveDataToPath(userData, d.userId, d.path, d.data);
-          fs.writeFile(`./data/${d.userId}.json`, JSON.stringify(userData, null, 2), function (err) {
+          if(!user.data) user.data = {};
+          saveDataToPath(user.data, d.userId, d.path, d.data);
+          fs.writeFile(`./data/${d.userId}.json`, JSON.stringify(user, null, 2), function (err) {
             if (err) return console.log(err);
           });
         }else {
-          s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`}, function(err, userData) {
+          s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`}, function(err, user) {
             // if(err) console.log("S3 Err: ", err);
-            if(userData){
-              userData = JSON.parse(userData.Body.toString());
-              saveDataToPath(userData, d.userId, d.path, d.data)
-            }else{
-              userData = {};
-            }
-            s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`, Body : JSON.stringify(userData, null, 2)}, (err, fileData) => {
+            if(!user) return;
+            user = JSON.parse(user.Body.toString())
+            if(!user.data) user.data = {};
+            saveDataToPath(user.data, d.userId, d.path, d.data)
+            s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`, Body : JSON.stringify(user, null, 2)}, (err, fileData) => {
               if (err) console.error(`Upload Error ${err}`);
             });
           })
@@ -419,28 +476,13 @@ function startSocketIO(){
     }
 
     socket.on("Get User Data", async(d) => {
-      if(data.users[d.username] && data.users[d.username][d.userId]){
+      getUserById(d.userId, (user) => {
+        if(!user || !user.data) return;
         const uniquePath = d.userId + d.path;
         socket.join(uniquePath);
-        if(!process.env.AWS_ACCESS_KEY_ID){
-          let userData = "{}";
-          try {
-            userData = fs.readFileSync(`./data/${d.userId}.json`, 'utf8')
-          } catch {
-            fs.writeFileSync(`./data/${d.userId}.json`, '{}', {flag: 'a'});
-          }
-          let thisData = getDataFromPath(JSON.parse(userData), d.path);
-          socket.emit("Get User Data", {data: thisData, path: uniquePath});
-        }else{
-          s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`}, function(err, fileData) {
-            if(err) console.log("S3 Err: ", err);
-            if(fileData){
-              fileData = fileData.Body.toString();
-            }
-            socket.emit("Get User Data", {data: JSON.parse(fileData), path: uniquePath})
-          })
-        }
-      }
+        const thisData = getDataFromPath(user.data, d.path);
+        socket.emit("Get User Data", {data: thisData, path: uniquePath});
+      })
     })
 
     // socket.on("Signal WebRTC Info to User", (d) => {
@@ -511,12 +553,28 @@ function startSocketIO(){
 
     //NEW WEBRTC SOCKETS
     socket.on("Connect to User", function (d) {
-      if(data.users[d.toUsername] && data.users[d.toUsername][d.toUserId]){
-        let sockets = data.users[d.toUsername][d.toUserId].sockets;
-        let socketId = Object.keys(sockets)[0];
-        io.to(socketId).emit('Getting Connection', {userId: d.userId, username: d.username, socket: socket.id, streaming: d.streaming});
-        socket.emit("Getting Connection", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath});
-      }
+      getUserById(d.toUserId, (user) => {
+        if(!user) return;
+        let sockets = user.sockets;
+        Object.keys(sockets).forEach((socketId) => {
+          if(data.online[socketId]){
+            console.log(socketId);
+            io.to(socketId).emit('Getting Connection', {userId: d.userId, username: d.username, socket: socket.id, streaming: d.streaming});
+            socket.emit("Getting Connection", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath});
+          }else{
+            delete user.sockets[socketId];
+            if(!process.env.AWS_ACCESS_KEY_ID){
+              fs.writeFile(`./data/${user.id}.json`, JSON.stringify(user, null, 2), function (err) {
+                if (err) return console.log(err);
+              });
+            } else {
+              s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${user.id}.json`, Body : JSON.stringify(user, null, 2)}, (err, fileData) => {
+                if (err) console.error(`Upload Error ${err}`);
+              });
+            }
+          }
+        })
+      })
     });
 
 

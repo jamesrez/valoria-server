@@ -100,6 +100,7 @@ async function connectToPeer(peer){
     $('.chatMsgForm').css('display', 'flex');
     $('.chatVideoBtn').css('display', 'flex');
     $('.chatVideoBtn').on('click', () => {
+      $('.chatVideos').css('display', 'flex');
       navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(function(myStream) {
         $('.chatUserVideo')[0].srcObject = myStream;
         valoria.call(peer.userId, myStream, (theirStream) => {
@@ -109,6 +110,7 @@ async function connectToPeer(peer){
       })
     })
     valoria.onCall((d) => {
+      $('.chatVideos').css('display', 'flex');
       navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(function(myStream) {
         $('.chatUserVideo')[0].srcObject = myStream;
         valoria.answer(d, (theirStream) => {

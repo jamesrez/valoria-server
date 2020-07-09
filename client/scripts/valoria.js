@@ -354,6 +354,7 @@
       const userId = await digestMessage(username + password);
       socket.emit('Get User', {username, userId});
       socket.on('Get User', async (d) => {
+        console.log(d)
         const salt = Uint8Array.from(Object.values(JSON.parse(d.ecdsaPair.privateKey).salt));
         const iv = Uint8Array.from(Object.values(JSON.parse(d.ecdsaPair.privateKey).iv));
         const keyMaterial = await getKeyMaterial(password);
