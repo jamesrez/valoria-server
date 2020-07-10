@@ -495,10 +495,10 @@ function startSocketIO(){
         }
         const uniquePath = d.userId + d.path;
         const thisKey = user.keys[uniquePath];
-        if(!thisKey || !thisKey[d.keyUser]) {
+        if(!thisKey) {
           socket.emit("Get Key from Path", {err: "No Key Found", key: null, path: d.path, userId: d.userId});
         }
-        socket.emit("Get Key from Path", {key: thisKey[d.keyUser], path: d.path, userId: d.userId});
+        socket.emit("Get Key from Path", {key: thisKey, path: d.path, userId: d.userId});
       })
     })
 
@@ -506,9 +506,8 @@ function startSocketIO(){
       getUserById(d.userId, (user) => {
         if(!user) return;
         const uniquePath = d.userId + d.path;
-        const thisKey = user.keys[uniquePath];
-        if(!thisKey) thisKey = {};
-        thisKey[keyUser] = d.key
+        user.keys[uniquePath] = user.keys[uniquePath] || {};
+        user.keys[uniquePath][d.keyUser] = d.key
         if(!process.env.AWS_ACCESS_KEY_ID){
           fs.writeFile(`./data/${d.userId}.json`, JSON.stringify(user, null, 2), function (err) {
             if (err) return console.log(err);
@@ -594,7 +593,6 @@ function startSocketIO(){
         let sockets = user.sockets;
         Object.keys(sockets).forEach((socketId) => {
           if(data.online[socketId]){
-            console.log(socketId);
             io.to(socketId).emit('Getting Connection', {userId: d.userId, username: d.username, socket: socket.id, streaming: d.streaming});
             socket.emit("Getting Connection", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath});
           }else{

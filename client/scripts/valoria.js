@@ -21,7 +21,9 @@
   const localforage = require('../scripts/localforage.min.js');
   
   function base64ToArrayBuffer(dataUrl, cb) {
-    console.log(dataUrl)
+    if(!dataUrl.startsWith('data:application/octet-binary;base64,')){
+      dataUrl = 'data:application/octet-binary;base64,' + dataUrl;
+    }
     fetch(dataUrl)
       .then(res => res.arrayBuffer())
       .then(buffer => {
@@ -355,7 +357,6 @@
       const userId = await digestMessage(username + password);
       socket.emit('Get User', {username, userId});
       socket.on('Get User', async (d) => {
-        console.log(d)
         const salt = Uint8Array.from(Object.values(JSON.parse(d.ecdsaPair.privateKey).salt));
         const iv = Uint8Array.from(Object.values(JSON.parse(d.ecdsaPair.privateKey).iv));
         const keyMaterial = await getKeyMaterial(password);
@@ -457,8 +458,8 @@
           username: user.username,
           id: user.id,
           sockets: user.sockets,
-          eKey: user.eKey,
-          keyPair: user.keyPair,
+          ecdhPair: user.ecdhPair,
+          ecdsaPair: user.ecdsaPair,
           dimension: user.dimension,
           valoria: this
         });
@@ -485,11 +486,6 @@
       Object.keys(this.user.sockets).forEach((id) => {
         this.user.sockets[id].on('Get Key from Path', (d) => {
           let vData = this.datas[d.userId + d.path];
-          // if(d.key){
-          //   console.log("Got Key");
-          //   console.log(d.key)
-          //   // vData.saveDataToPath(d.data);
-          // }
           if(vData.onKey && typeof vData.onKey === 'function'){
             vData.onKey(d);
           }
@@ -874,18 +870,24 @@
       const thisD = this;
       const thisVal = thisD.user.valoria;
       const socket = thisVal.socket;
-      localforage.getItem(`keys.user.${this.user.id}${this.path}.${thisVal.user.id}`).then((d) => {
+      localforage.getItem(`keys.user.${this.user.id}${this.path}`).then((keyString) => {
 
-        if(d && cb && typeof cb === 'function'){
-          cb(d);
-        }
+        // if(keyString && typeof keyString === 'string'){
+        //   if(cb && typeof cb === 'function'){
+        //     cb(JSON.parse(keyString));
+        //     return;
+        //   }
+        // }
 
         thisD.onKey = async (d) => {
+
           if(d && d.key){
-            if(thisD.key === d) return;
-            thisD.key = d;
+            localforage.setItem(`keys.user.${this.user.id}${this.path}`, JSON.stringify(d.key));
+            if(thisD.key === d.key) return;
+            thisD.key = d.key;
             if(cb && typeof cb === 'function'){
-              cb(d);
+              cb(d.key);
+              return;
             }
           }else if(d.userId === thisVal.user.id){
             //CREATE THE KEY 
@@ -899,7 +901,6 @@
             );
             const key2Send = {};
             key2Send.publicKey = await crypto.subtle.exportKey('jwk', thisD.key.publicKey);
-            key2Send.privateKey = await crypto.subtle.exportKey('jwk', thisD.key.privateKey);
             //DERIVE ENCRYPTION KEY 
             const eKey = await crypto.subtle.deriveKey(
               {
@@ -912,19 +913,27 @@
                 length: 256
               },
               true,
-              ["encrypt", "decrypt"]
+              ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
             )
-            //ENCRYPT THE PRIVATE KEY
-            var enc = new TextEncoder(); // always utf-8
-            key2Send.privateKey = enc.encode(key2Send.privateKey);
+            //WRAP THE PRIVATE KEY
             const iv = window.crypto.getRandomValues(new Uint8Array(12));
-            key2Send.privateKey = await crypto.subtle.encrypt({
-              name: 'AES-GCM',
+            const wrapped = await crypto.subtle.wrapKey(
+              'jwk',
+              thisD.key.privateKey,
+              eKey,
+              {name: 'AES-GCM', iv}
+            )
+            key2Send.privateKey = JSON.stringify({
+              wrapped: arrayBufferToBase64(wrapped),
               iv: iv
-            }, eKey, key2Send.privateKey);
-            key2Send.privateKey = arrayBufferToBase64(key2Send.privateKey);
+            });
+            // key2Send.privateKey = await crypto.subtle.encrypt({
+            //   name: 'AES-GCM',
+            //   iv: iv
+            // }, eKey, key2Send.privateKey);
+            const thisKey = {[thisVal.user.id] : key2Send};
             //SAVE KEY TO PATH
-            localforage.setItem(`keys.user.${this.user.id}${this.path}.${thisVal.user.id}`, key2Send);
+            localforage.setItem(`keys.user.${this.user.id}${this.path}`, JSON.stringify(thisKey));
             socket.emit("Save Key to Path", {
               keyUser : thisVal.user.id,
               userId : thisVal.user.id,
@@ -933,6 +942,7 @@
             })
           }else{
             console.log("Could not find Key");
+            return;
           }
         };
   
@@ -941,7 +951,6 @@
           //ATTEMPT TO ASK USER THROUGH PEER TO PEER CONNECTION
           if(thisD.user.id !== thisVal.user.id){
             if(thisVal.conns[thisD.user.id] && thisVal.conns[thisD.user.id].dataChannel){
-              console.log("ALREADY HAVE P2P CONNECTION");
               const data = {
                 type: 'getKey',
                 path: thisD.user.id + thisD.path,
@@ -982,8 +991,96 @@
       })
     }
 
-    async shareEncryptionKey(userId){
+    async shareEncryptionKey(user){
+      const thisD = this;
+      const thisVal = thisD.user.valoria;
+      const socket = thisVal.socket;
+      if(thisD.user.id !== thisVal.user.id) return;
+      thisD.getEncryptionKey(async (key) => {
+        if(!key[thisVal.user.id]) return;
+        const myKey = key[thisVal.user.id];
+        //IMPORT OUR PUBLIC KEY
+        const publicKey = await crypto.subtle.importKey(
+          'jwk',
+          myKey.publicKey,
+          {name: "ECDH", namedCurve: "P-384"},
+          true,
+          []
+        );
+        //DERIVE OUR ENCRYPTION KEY 
+        const ourEKey = await crypto.subtle.deriveKey(
+          {
+            name: 'ECDH',
+            public: publicKey
+          },
+          thisVal.user.ecdhPair.privateKey,
+          {
+            name: 'AES-GCM',
+            length: 256
+          },
+          true,
+          ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
+        )
+        //UNWRAP PRIVATE KEY
+        const ourIv = Uint8Array.from(Object.values(JSON.parse(myKey.privateKey).iv));
+        base64ToArrayBuffer(JSON.parse(myKey.privateKey).wrapped, async (privAb) => {
+          const privateKey = await crypto.subtle.unwrapKey(
+            'jwk',
+            privAb,
+            ourEKey,
+            {name: 'AES-GCM', iv: ourIv},
+            {name: 'ECDH', namedCurve: 'P-384'},
+            true,
+            ["deriveKey", 'deriveBits']
+          );
+          //IMPORT THEIR PUBLIC KEY
+          user.ecdhPair.publicKey = await crypto.subtle.importKey(
+            'jwk',
+            JSON.parse(user.ecdhPair.publicKey),
+            {name: "ECDH", namedCurve: "P-384"},
+            true,
+            []
+          );
+          //DERIVE THEIR ENCRYPTION KEY
+          const theirEKey = await crypto.subtle.deriveKey(
+            {
+              name: 'ECDH',
+              public: user.ecdhPair.publicKey
+            },
+            privateKey,
+            {
+              name: 'AES-GCM',
+              length: 256
+            },
+            true,
+            ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
+          )
+          //WRAP THEIR PRIVATE KEY
+          const theirIv = window.crypto.getRandomValues(new Uint8Array(12));
+          const wrapped = await crypto.subtle.wrapKey(
+            'jwk',
+            privateKey,
+            theirEKey,
+            {name: 'AES-GCM', iv: theirIv}
+          )
+          let key2Share = {
+            publicKey: myKey.publicKey
+          }
+          key2Share.privateKey = JSON.stringify({
+            wrapped: arrayBufferToBase64(wrapped),
+            iv: theirIv
+          });
+          key[user.id] = key2Share;
 
+          localforage.setItem(`keys.user.${this.user.id}${this.path}`, JSON.stringify(key));
+          socket.emit("Save Key to Path", {
+            keyUser : user.id,
+            userId : thisD.user.id,
+            path: this.path,
+            key: key2Share
+          })
+        })
+      })
     }
 
     async revokeEncryptionKey(userId){
