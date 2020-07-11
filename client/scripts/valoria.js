@@ -44,6 +44,15 @@
   function ab2str(buf) {
     return String.fromCharCode.apply(null, new Uint16Array(buf));
   }
+
+  function str2ab(str) {
+    var buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
+    var bufView = new Uint16Array(buf);
+    for (var i=0, strLen=str.length; i < strLen; i++) {
+      bufView[i] = str.charCodeAt(i);
+    }
+    return buf;
+  }
   
   function getKeyMaterial(password) {
     const enc = new TextEncoder();
@@ -322,6 +331,7 @@
             let ecdsaPair2Save = {};
             ecdsaPair2Save.publicKey = JSON.stringify(await window.crypto.subtle.exportKey("jwk", ecdsaPair.publicKey));
             ecdsaPair2Save.privateKey = JSON.stringify({wrapped : ecdsaPrivWrapped, salt: salt, iv: iv});
+            socket.off('Create User');
             socket.emit('Create User', {
               userId, username, ecdsaPair: ecdsaPair2Save, ecdhPair : ecdhPair2Save
             });  
@@ -465,6 +475,16 @@
         });
         localforage.setItem(`user.${user.id}`, user);
         if(user && cb && typeof cb === 'function') cb(thisVal.users[user.id]);
+      })
+    }
+
+    async getUsersByUsername(d, cb){
+      const socket = this.socket;
+      const thisVal = this;
+      socket.off('Get User by Username');
+      socket.emit('Get User by Username', d);
+      socket.on('Get User by Usernme', (users) => {
+        if(users && cb && typeof cb === 'function') cb(users);
       })
     }
   
@@ -826,24 +846,24 @@
           ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
         )
         //ENCRYPT THE DATA
-        let enc = new TextEncoder();
         let encoded;
         if(typeof this.value === 'object'){
-          encoded = enc.encode(JSON.stringify(this.value));
+          encoded = str2ab(JSON.stringify(this.value));
         }else{
-          encoded = enc.encode(this.value);
+          encoded = str2ab(this.value);
         }
-        const ourIv = Uint8Array.from(Object.values(JSON.parse(ourKey.privateKey).iv));
+        const iv = window.crypto.getRandomValues(new Uint8Array(12));
         this.value = await crypto.subtle.encrypt(
           {
             name: 'AES-GCM', 
-            iv: ourIv,
+            iv: iv,
           },
           ourEKey,
           encoded
         )
         this.value = "VALENCRYPTED" + JSON.stringify({
-          data: arrayBufferToBase64(this.value),
+          data: ab2str(this.value),
+          iv: iv,
           keyOwner: opts.encrypt.userId,
           keyPath: opts.encrypt.path
         })
@@ -898,7 +918,16 @@
               true,
               ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
             )
-            console.log(ourEKey)
+            const iv = Uint8Array.from(Object.values(encrypted.iv));
+            //DECRYPT THE DATA 
+            const decrypted = await crypto.subtle.decrypt({
+              name: 'AES-GCM',
+              iv: iv,
+            }, 
+              ourEKey,
+              str2ab(encrypted.data)
+            );
+            console.log(ab2str(decrypted));
           })
         })
       }
@@ -919,10 +948,11 @@
         }
   
         thisD.onNew = async (d) => {
-          if(thisD.value === d) return;
+          if(!d || thisD.value === d) return;
           if(typeof d === 'string' && d.startsWith('VALENCRYPTED')){
             await decrypt(d)
           }else if(typeof d === 'object'){
+            
             Object.keys(d).forEach(async (prop) => {
               if(typeof d[prop] === 'string' && d[prop].startsWith('VALENCRYPTED')){
                 await decrypt(d[prop]);
@@ -981,6 +1011,7 @@
         if(keyString && typeof keyString === 'string'){
           if(cb && typeof cb === 'function'){
             cb(JSON.parse(keyString));
+            return
           }
         }
 
@@ -991,6 +1022,7 @@
             thisD.key = d.key;
             if(cb && typeof cb === 'function'){
               cb(d.key);
+              return;
             }
           }else if(d.userId === thisVal.user.id){
             //CREATE THE KEY 
@@ -1134,9 +1166,12 @@
             ["deriveKey", 'deriveBits']
           );
           //IMPORT THEIR PUBLIC KEY
+          if(typeof user.ecdhPair.publicKey === 'string'){
+            user.ecdhPair.publicKey = JSON.parse(user.ecdhPair.publicKey);
+          };
           user.ecdhPair.publicKey = await crypto.subtle.importKey(
             'jwk',
-            JSON.parse(user.ecdhPair.publicKey),
+            user.ecdhPair.publicKey,
             {name: "ECDH", namedCurve: "P-384"},
             true,
             []

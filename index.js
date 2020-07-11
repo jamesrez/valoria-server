@@ -292,6 +292,12 @@ function startSocketIO(){
         })
       }
     }
+
+    function getUsersByUsername(username, cb){
+      let user;
+      if(!username || !cb || typeof cb !== 'function' || !data.usernames[username]) return;
+      cb(data.usernames[username]);
+    }
   
     socket.on('Get User', (id) => {
       getUserById(id, (user) => {
@@ -299,6 +305,16 @@ function startSocketIO(){
           socket.emit("Get User", user);
         }else{
           socket.emit("Get User", {...d, err : "User Does Not Exist"});
+        }
+      })
+    })
+
+    socket.on('Get User by Username', (username) => {
+      getUsersByUsername(username, (users) => {
+        if(users){
+          socket.emit("Get User by Usernme", users);
+        }else{
+          socket.emit("Get User by Username", {...d, err : "Username has not been found."});
         }
       })
     })
@@ -493,9 +509,8 @@ function startSocketIO(){
         if(!user || !user.keys) {
           socket.emit("Get Key from Path", {err: "No Key Found", key: null, path: d.path, userId: d.userId});
         }
-        console.log(user.keys)
-        console.log(uniquePath)
         const uniquePath = d.userId + d.path;
+        console.log(uniquePath);
         const thisKey = user.keys[uniquePath];
         if(!thisKey) {
           socket.emit("Get Key from Path", {err: "No Key Found", key: null, path: d.path, userId: d.userId});

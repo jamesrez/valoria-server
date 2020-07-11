@@ -22,6 +22,24 @@ async function start(){
   }
 }
 
+//   valoria.getUsersByUsername("james", (users) => {
+//     valoria.getUser(Object.keys(users)[0], (james) => {
+//       james.get('assets').get('3d').get('avatars').get('assistant').on((woman) => {
+//         if(!woman) return;
+//         const gltfModel = $('#woman')[0].components["gltf-model"];
+//         const loader = new AFRAME.THREE.GLTFLoader();
+//         loader.parse(woman, null, (gltf) => {
+//           gltfModel.model = gltf.scene || gltf.scenes[0];
+//           gltfModel.model.animations = gltf.animations;
+//           console.log(gltfModel.model)
+//           gltfModel.el.setObject3D('mesh', gltfModel.model);
+//           gltfModel.el.emit('model-loaded', {format: 'gltf', model: gltfModel.model});
+//         })
+//       })
+//     })
+//   })
+// }
+
 start();
 
 async function joinWithCredentials(username, password){
@@ -72,19 +90,6 @@ async function startChat(){
   $('.valoriaAuth').css('display', 'none');
   $('.valoriaChat').css('display', 'flex');
   loadOnlineUsers();
-  // valoria.user.get('assets').get('3d').get('avatars').on((woman) => {
-  //   console.log(woman)
-  //   if(!woman) return;
-  //   const gltfModel = $('#woman')[0].components["gltf-model"];
-  //   const loader = new AFRAME.THREE.GLTFLoader();
-  //   loader.parse(woman, null, (gltf) => {
-  //     gltfModel.model = gltf.scene || gltf.scenes[0];
-  //     gltfModel.model.animations = gltf.animations;
-  //     console.log(gltfModel.model)
-  //     gltfModel.el.setObject3D('mesh', gltfModel.model);
-  //     gltfModel.el.emit('model-loaded', {format: 'gltf', model: gltfModel.model});
-  //   })
-  // })
 } 
 
 async function loadOnlineUsers(){
@@ -201,6 +206,7 @@ async function sendMessage(msg){
   if(currentChat.userId){
     const time = Date.now();
     valoria.user.get('chat').get('users').get(currentChat.userId).getEncryptionKey((key) => {
+      console.log("ITS THIS");
       valoria.user.get('chat').get('users').get(currentChat.userId).get(time).set(msg, {
         encrypt: key
       });
