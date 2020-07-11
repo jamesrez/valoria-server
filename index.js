@@ -293,8 +293,8 @@ function startSocketIO(){
       }
     }
   
-    socket.on('Get User', (d) => {
-      getUserById(d.userId, (user) => {
+    socket.on('Get User', (id) => {
+      getUserById(id, (user) => {
         if(user){
           socket.emit("Get User", user);
         }else{
@@ -493,6 +493,8 @@ function startSocketIO(){
         if(!user || !user.keys) {
           socket.emit("Get Key from Path", {err: "No Key Found", key: null, path: d.path, userId: d.userId});
         }
+        console.log(user.keys)
+        console.log(uniquePath)
         const uniquePath = d.userId + d.path;
         const thisKey = user.keys[uniquePath];
         if(!thisKey) {
@@ -508,6 +510,8 @@ function startSocketIO(){
         const uniquePath = d.userId + d.path;
         user.keys[uniquePath] = user.keys[uniquePath] || {};
         user.keys[uniquePath][d.keyUser] = d.key
+        if(!user.keys[uniquePath].path) user.keys[uniquePath].path = d.path;
+        if(!user.keys[uniquePath].userId) user.keys[uniquePath].userId = d.userId;
         if(!process.env.AWS_ACCESS_KEY_ID){
           fs.writeFile(`./data/${d.userId}.json`, JSON.stringify(user, null, 2), function (err) {
             if (err) return console.log(err);

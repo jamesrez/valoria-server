@@ -355,7 +355,7 @@
       const dimension = this.dimension;
       const thisValoria = this;
       const userId = await digestMessage(username + password);
-      socket.emit('Get User', {username, userId});
+      socket.emit('Get User', userId);
       socket.on('Get User', async (d) => {
         const salt = Uint8Array.from(Object.values(JSON.parse(d.ecdsaPair.privateKey).salt));
         const iv = Uint8Array.from(Object.values(JSON.parse(d.ecdsaPair.privateKey).iv));
@@ -389,7 +389,7 @@
               id: userId,
               ecdsaPair: d.ecdsaPair,
               ecdhPair: d.ecdhPair,
-              sockets: {[socket] : socket},
+              sockets: {[socket.id] : socket},
               dimension: dimension,
               valoria: thisValoria
             });
@@ -797,14 +797,61 @@
     }
   
     async set(d, opts={}){
-      if(opts.encrypt){
-
-      }
       this.value = d;
-      this.saveDataToPath(d);
+      if(opts.encrypt){
+        const ourKey = opts.encrypt[this.user.valoria.user.id];
+        if(!ourKey){
+          console.log("You do not have access to this key.");
+        }
+        //IMPORT OUR PUBLIC KEY
+        const publicKey = await crypto.subtle.importKey(
+          'jwk',
+          ourKey.publicKey,
+          {name: "ECDH", namedCurve: "P-384"},
+          true,
+          []
+        );
+        //DERIVE OUR ENCRYPTION KEY 
+        const ourEKey = await crypto.subtle.deriveKey(
+          {
+            name: 'ECDH',
+            public: publicKey
+          },
+          this.user.valoria.user.ecdhPair.privateKey,
+          {
+            name: 'AES-GCM',
+            length: 256
+          },
+          true,
+          ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
+        )
+        //ENCRYPT THE DATA
+        let enc = new TextEncoder();
+        let encoded;
+        if(typeof this.value === 'object'){
+          encoded = enc.encode(JSON.stringify(this.value));
+        }else{
+          encoded = enc.encode(this.value);
+        }
+        const ourIv = Uint8Array.from(Object.values(JSON.parse(ourKey.privateKey).iv));
+        this.value = await crypto.subtle.encrypt(
+          {
+            name: 'AES-GCM', 
+            iv: ourIv,
+          },
+          ourEKey,
+          encoded
+        )
+        this.value = "VALENCRYPTED" + JSON.stringify({
+          data: arrayBufferToBase64(this.value),
+          keyOwner: opts.encrypt.userId,
+          keyPath: opts.encrypt.path
+        })
+      }
+      this.saveDataToPath(this.value);
       Object.keys(this.user.valoria.user.sockets).forEach((id) => {
         this.user.valoria.user.sockets[id].emit("Save User Data", {
-          data: d,
+          data: this.value,
           path: this.path,
           userId: this.user.id,
           username: this.user.username
@@ -815,14 +862,73 @@
     async on(cb){
       const thisD = this;
       const thisVal = thisD.user.valoria;
-      localforage.getItem(`user.${this.user.id}${this.path}`).then((d) => {
+
+      async function decrypt(encryptedStr){
+        const encrypted = JSON.parse(encryptedStr.substr(12))
+        valoria.getUser(encrypted.keyOwner, (user) => {
+          const keyPathArr = encrypted.keyPath.split('.')
+          let thisKeyD = user;
+          for(let i=1;i<keyPathArr.length;i++){
+            thisKeyD = thisKeyD.get(keyPathArr[i]);
+          }
+          thisKeyD.getEncryptionKey(async (key) => {
+            if(!key || !key[thisVal.user.id]){
+              console.log("Could not Decrypt Data.");
+              return encryptedStr;
+            }
+            const ourKey = key[thisVal.user.id];
+            const publicKey = await crypto.subtle.importKey(
+              'jwk',
+              ourKey.publicKey,
+              {name: "ECDH", namedCurve: "P-384"},
+              true,
+              []
+            );
+            //DERIVE OUR ENCRYPTION KEY 
+            const ourEKey = await crypto.subtle.deriveKey(
+              {
+                name: 'ECDH',
+                public: publicKey
+              },
+              thisVal.user.ecdhPair.privateKey,
+              {
+                name: 'AES-GCM',
+                length: 256
+              },
+              true,
+              ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
+            )
+            console.log(ourEKey)
+          })
+        })
+      }
+
+      localforage.getItem(`user.${this.user.id}${this.path}`).then(async (d) => {
   
         if(d && cb && typeof cb === 'function'){
+          if(typeof d === 'string' && d.startsWith('VALENCRYPTED')){
+            await decrypt(d)
+          }else if(typeof d === 'object'){
+            Object.keys(d).forEach(async (prop) => {
+              if(typeof d[prop] === 'string' && d[prop].startsWith('VALENCRYPTED')){
+                await decrypt(d[prop]);
+              }
+            })
+          }
           cb(d);
         }
   
-        thisD.onNew = (d) => {
+        thisD.onNew = async (d) => {
           if(thisD.value === d) return;
+          if(typeof d === 'string' && d.startsWith('VALENCRYPTED')){
+            await decrypt(d)
+          }else if(typeof d === 'object'){
+            Object.keys(d).forEach(async (prop) => {
+              if(typeof d[prop] === 'string' && d[prop].startsWith('VALENCRYPTED')){
+                await decrypt(d[prop]);
+              }
+            })
+          }
           thisD.value = d;
           if(cb && typeof cb === 'function'){
             cb(d);
@@ -872,22 +978,19 @@
       const socket = thisVal.socket;
       localforage.getItem(`keys.user.${this.user.id}${this.path}`).then((keyString) => {
 
-        // if(keyString && typeof keyString === 'string'){
-        //   if(cb && typeof cb === 'function'){
-        //     cb(JSON.parse(keyString));
-        //     return;
-        //   }
-        // }
+        if(keyString && typeof keyString === 'string'){
+          if(cb && typeof cb === 'function'){
+            cb(JSON.parse(keyString));
+          }
+        }
 
         thisD.onKey = async (d) => {
-
           if(d && d.key){
             localforage.setItem(`keys.user.${this.user.id}${this.path}`, JSON.stringify(d.key));
             if(thisD.key === d.key) return;
             thisD.key = d.key;
             if(cb && typeof cb === 'function'){
               cb(d.key);
-              return;
             }
           }else if(d.userId === thisVal.user.id){
             //CREATE THE KEY 
@@ -927,11 +1030,7 @@
               wrapped: arrayBufferToBase64(wrapped),
               iv: iv
             });
-            // key2Send.privateKey = await crypto.subtle.encrypt({
-            //   name: 'AES-GCM',
-            //   iv: iv
-            // }, eKey, key2Send.privateKey);
-            const thisKey = {[thisVal.user.id] : key2Send};
+            const thisKey = {userId : this.user.id, path: this.path, [thisVal.user.id] : key2Send};
             //SAVE KEY TO PATH
             localforage.setItem(`keys.user.${this.user.id}${this.path}`, JSON.stringify(thisKey));
             socket.emit("Save Key to Path", {
@@ -942,7 +1041,6 @@
             })
           }else{
             console.log("Could not find Key");
-            return;
           }
         };
   
@@ -992,6 +1090,8 @@
     }
 
     async shareEncryptionKey(user){
+      console.log("SHARING KEY WITH");
+      console.log(user);
       const thisD = this;
       const thisVal = thisD.user.valoria;
       const socket = thisVal.socket;

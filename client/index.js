@@ -106,7 +106,7 @@ async function loadOnlineUsers(){
 }
 
 async function connectToPeer(peer){
-  valoria.getUser({userId: peer.userId, username: peer.username}, (u) => {
+  valoria.getUser(peer.userId, (u) => {
     window.thisPeer = u;
     delete currentChat.channel;
     currentChat.userId = u.id;
@@ -136,11 +136,10 @@ async function connectToPeer(peer){
     $('.chatMsgContainerList').empty();
     let loaded = {};
     let allMsgs = [];
+    valoria.user.get('chat').get('users').get(u.id).shareEncryptionKey(u);
     function getMsgsOfUser(data, username){
-      data.getEncryptionKey((key) => {
-        data.shareEncryptionKey(u);
-        console.log(key);
-      })
+      // data.getEncryptionKey((key) => {
+      // })
       data.on((msgTimes) => {
         if(msgTimes && typeof msgTimes === 'object'){
           Object.keys(msgTimes).forEach((time) => {
@@ -201,6 +200,10 @@ async function sendMessage(msg){
   $('.chatMsgInput').val('');
   if(currentChat.userId){
     const time = Date.now();
-    valoria.user.get('chat').get('users').get(currentChat.userId).get(time).set(msg);
+    valoria.user.get('chat').get('users').get(currentChat.userId).getEncryptionKey((key) => {
+      valoria.user.get('chat').get('users').get(currentChat.userId).get(time).set(msg, {
+        encrypt: key
+      });
+    })
   }
 }
