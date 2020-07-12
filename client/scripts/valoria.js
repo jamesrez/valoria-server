@@ -892,6 +892,7 @@
             thisKeyD = thisKeyD.get(keyPathArr[i]);
           }
           thisKeyD.getEncryptionKey(async (key) => {
+            console.log(key);
             if(!key || !key[thisVal.user.id]){
               console.log("Could not Decrypt Data.");
               return encryptedStr;
