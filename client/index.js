@@ -274,11 +274,7 @@ RainbowSpan.prototype.moveRainbow = function() {
   }
   this.hue+=this.hspd;
 }
-let rainbowHeader = new RainbowSpan($('.valoriaHeader')[0], 0, 360, 255, 50, 18);
+let rainbowHeader = new RainbowSpan($('.valoriaHeader')[0], 70, 400, 255, 50, 3);
 rainbowHeader.timer = window.setInterval("rainbowHeader.moveRainbow()", rainbowHeader.speed);
-// var r1=document.getElementById("r1"); //get span to apply rainbow
-// var myRainbowSpan=new RainbowSpan(r1, 0, 360, 255, 50, 18); //apply static rainbow effect
-// myRainbowSpan.timer=window.setInterval("myRainbowSpan.moveRainbow()", myRainbowSpan.speed);
-// var r2=document.getElementById("r2"); //get span to apply rainbow
-// var myRainbowSpan2=new RainbowSpan(r2, 0, 360, 255, 50, 348); //apply static rainbow effect
-// myRainbowSpan2.timer=window.setInterval("myRainbowSpan2.moveRainbow()", myRainbowSpan2.speed);
+// let rainbowDesc = new RainbowSpan($('.valoriaDesc')[0], 70, 400, 255, 1, 0.2);
+// rainbowDesc.timer = window.setInterval("rainbowDesc.moveRainbow()", rainbowDesc.speed);

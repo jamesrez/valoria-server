@@ -12,36 +12,38 @@ head
   script(src="scripts/valoria.js")
 body
 
-  h2.valoriaSecondHeader.hideScrollbar
+  .valoria
 
-  .valoriaAuth
-    h1.valoriaHeader Valoria
-    input.valoriaUsernameInput(placeholder="username")
-    input.valoriaPasswordInput(placeholder="password" type="password")
-    .valoriaAuthSubmit="JOIN WITH USERNAME & PASSWORD"
-    .valoriaJoinWithWeb3Wallet
-      | JOIN WITH WEB3
+    h2.valoriaSecondHeader.hideScrollbar
 
-  .valoriaChat
-    .chatSidebar
-      .chatOnline
-        .chatOnlineLabel ONLINE
-        .chatOnlineList
-      .chatContacts
+    .valoriaAuth
+      h1.valoriaHeader Welcome
+      .valoriaDesc Hi, I'd like to be the first to welcome you to Valoria. We're all very excited to meet you.
+      input.valoriaUsernameInput(placeholder="Username")
+      input.valoriaPasswordInput(placeholder="Password" type="password")
+      .valoriaAuthSubmit="JOIN WITH USERNAME & PASSWORD"
+      .valoriaJoinWithWeb3Wallet
+        | JOIN WITH WEB3 WALLET
 
-    .chatMain
-      h1.valoriaHeader Valoria
-      .chatNav
-        .chatName.hideScrollbar SELECT A PERSON TO CHAT WITH
-        .chatVideoBtn VIDEO CHAT
-      .chatMsgContainer
-        .chatMsgContainerList
-      .chatMsgForm
-        input.chatMsgInput(placeholder="SEND A MESSAGE")
-        .chatMsgInputSubmit SEND
-    .chatVideos
-      video.chatPeerVideo(controls autoplay playsinline)
-      video.chatUserVideo(muted controls autoplay playsinline)
+    .valoriaChat
+      .chatSidebar
+        .chatOnline
+          .chatOnlineLabel ONLINE
+          .chatOnlineList
+        .chatContacts
+
+      .chatMain
+        .chatNav
+          .chatName.hideScrollbar SELECT A PERSON TO CHAT WITH
+          .chatVideoBtn VIDEO CHAT
+        .chatMsgContainer
+          .chatMsgContainerList
+        .chatMsgForm
+          input.chatMsgInput(placeholder="SEND A MESSAGE")
+          .chatMsgInputSubmit SEND
+      .chatVideos
+        video.chatPeerVideo(controls autoplay playsinline)
+        video.chatUserVideo(muted controls autoplay playsinline)
 
   .valoriaVR 
     a-scene(id="vrScene")

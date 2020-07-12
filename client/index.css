@@ -8,6 +8,18 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+.valoria {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  z-index: 100000;
+  pointer-events: none;
+}
+
 .hideScrollbar:{
   -ms-overflow-style: none;
 }
@@ -19,8 +31,18 @@ body {
 .valoriaHeader {
   text-align: center;
   font-weight: bold;
-  font-size: 36px;
-  margin-bottom: 0px;
+  font-size: 62px;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  text-shadow: 0px 0px 2px black;
+}
+
+.valoriaDesc {
+  font-weight: bold;
+  text-align: center;
+  margin: 0px 8px 8px;
+  text-shadow: 0px 0px 3px black;
+  color: white
 }
 
 .valoriaSecondHeader {
@@ -36,13 +58,14 @@ body {
   flex-direction: column;
   align-items: center;
   min-width: 300px;
-  position: absolute;
+  max-width: 400px;
   z-index: 1;
   top: 120px;
   border: 3px solid black;
-  padding: 8px 32px 32px 32px;
+  padding: 0px 32px 32px 32px;
   border-radius: 8px;
-  background : #ff9dffa1;
+  pointer-events: all;
+  margin-top: 90px;
 }
 
 .valoriaUsernameInput {
@@ -70,26 +93,39 @@ body {
 .valoriaAuthSubmit {
   text-align: center;
   padding: 8px 16px;
-  border-radius: 8px;
+  border-radius: 6px;
   border : 3px solid black;
-  color : black;
+  color : white;
   font-weight: bold;
   font-size: 16px;
   cursor : pointer;
-  width: 90%;
+  width: 81%;
   margin-bottom: 8px;
+  background: #e83ca2;
+  text-shadow: 0px 0px 3px black;
+}
+
+.valoriaAuthSubmit:hover {
+  background: #f91a9e;
 }
 
 .valoriaJoinWithWeb3Wallet {
   text-align: center;
   padding: 8px 16px;
-  border-radius: 8px;
+  border-radius: 6px;
   border : 3px solid black;
-  color : black;
+  color : white;
   font-weight: bold;
   font-size: 16px;
   cursor : pointer;
-  width : 90%;
+  width : 81%;
+  background: #25c58c;
+  margin-top: 4px;
+  text-shadow: 0px 0px 3px black;
+}
+
+.valoriaJoinWithWeb3Wallet:hover {
+  background: #21dc9a;
 }
 
 .valoriaChat {
@@ -100,9 +136,9 @@ body {
   border : 3px solid black;
   border-radius: 8px;;
   padding: 16px;
-  position: absolute;
-  top: 120px;
   z-index: 1;
+  pointer-events: all;
+  background: #ffffffc2;
 }
 
 .chatSidebar {
