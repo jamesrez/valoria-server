@@ -831,7 +831,7 @@
           true,
           []
         );
-        //DERIVE OUR ENCRYPTION KEY 
+        //DERIVE OUR ENCRYPTION KEY TO UNWRAP THIS DATA'S ECDH PRIVATE KEY
         const ourEKey = await crypto.subtle.deriveKey(
           {
             name: 'ECDH',
@@ -845,38 +845,97 @@
           true,
           ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
         )
-        //ENCRYPT THE DATA
-        let encoded;
-        if(typeof this.value === 'object'){
-          encoded = str2ab(JSON.stringify(this.value));
-        }else{
-          encoded = str2ab(this.value);
-        }
-        const iv = window.crypto.getRandomValues(new Uint8Array(12));
-        this.value = await crypto.subtle.encrypt(
-          {
-            name: 'AES-GCM', 
+        //UNWRAP OUR PRIVATE KEY 
+        base64ToArrayBuffer(JSON.parse(ourKey.privateKey).wrapped, async (ecdhPrivKeyBuffer) => {
+          const iv = Uint8Array.from(Object.values(JSON.parse(ourKey.privateKey).iv));
+          const privateKey = await crypto.subtle.unwrapKey(
+            'jwk',
+            ecdhPrivKeyBuffer,
+            ourEKey,
+            {
+              name: 'AES-GCM',
+              iv: iv
+            },
+            {
+              name: 'ECDH',
+              namedCurve: 'P-384'
+            },
+            true,
+            ["deriveKey", "deriveBits"]
+          );
+          //DERIVE THE ENCRYPTION KEY TO ENCRYPT / DECRYPT THE DATA
+          const dataEncryptionKey = await crypto.subtle.deriveKey(
+            {
+              name: 'ECDH',
+              public: publicKey
+            },
+            privateKey,
+            {
+              name: 'AES-GCM',
+              length: 256
+            },
+            false,
+            ["encrypt", "decrypt"]
+          );
+          //ENCRYPT THE DATA
+          let encoded;
+          if(typeof this.value === 'object'){
+            encoded = str2ab(JSON.stringify(this.value));
+          }else{
+            encoded = str2ab(this.value);
+          }
+          const dataIv = window.crypto.getRandomValues(new Uint8Array(12));
+          const abEncryptedValue = await crypto.subtle.encrypt(
+            {
+              name: 'AES-GCM', 
+              iv: dataIv,
+            },
+            dataEncryptionKey,
+            encoded
+          )
+          this.value = "VALENCRYPTED" + JSON.stringify({
+            data: ab2str(abEncryptedValue),
             iv: iv,
-          },
-          ourEKey,
-          encoded
-        )
-        this.value = "VALENCRYPTED" + JSON.stringify({
-          data: ab2str(this.value),
-          iv: iv,
-          keyOwner: opts.encrypt.userId,
-          keyPath: opts.encrypt.path
+            keyOwner: opts.encrypt.userId,
+            keyPath: opts.encrypt.path
+          })
+          this.saveDataToPath(this.value);
+          Object.keys(this.user.valoria.user.sockets).forEach((id) => {
+            this.user.valoria.user.sockets[id].emit("Save User Data", {
+              data: this.value,
+              path: this.path,
+              userId: this.user.id,
+              username: this.user.username
+            });
+          });
+
+          //ATTEMPT TO DECRYPT 
+          console.log("ATTEMPTING TO DECRYPT");
+          const decrypted = await crypto.subtle.decrypt(
+            {
+              name: 'AES-GCM',
+              iv: dataIv,
+            }, 
+            dataEncryptionKey,
+            abEncryptedValue
+          );
+          console.log("ATTEMPED");
+          console.log(decrypted)
+          console.log(ab2str(decrypted));
+
+
         })
-      }
-      this.saveDataToPath(this.value);
-      Object.keys(this.user.valoria.user.sockets).forEach((id) => {
-        this.user.valoria.user.sockets[id].emit("Save User Data", {
-          data: this.value,
-          path: this.path,
-          userId: this.user.id,
-          username: this.user.username
+      }else{
+        this.saveDataToPath(this.value);
+        Object.keys(this.user.valoria.user.sockets).forEach((id) => {
+          this.user.valoria.user.sockets[id].emit("Save User Data", {
+            data: this.value,
+            path: this.path,
+            userId: this.user.id,
+            username: this.user.username
+          });
         });
-      });
+      }
     }
   
     async on(cb){
@@ -892,7 +951,6 @@
             thisKeyD = thisKeyD.get(keyPathArr[i]);
           }
           thisKeyD.getEncryptionKey(async (key) => {
-            console.log(key);
             if(!key || !key[thisVal.user.id]){
               console.log("Could not Decrypt Data.");
               return encryptedStr;
@@ -905,7 +963,7 @@
               true,
               []
             );
-            //DERIVE OUR ENCRYPTION KEY 
+            //DERIVE OUR ENCRYPTION KEY TO UNWRAP OUR ECDH PRIVATE KEY
             const ourEKey = await crypto.subtle.deriveKey(
               {
                 name: 'ECDH',
@@ -919,16 +977,56 @@
               true,
               ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
             )
-            const iv = Uint8Array.from(Object.values(encrypted.iv));
-            //DECRYPT THE DATA 
-            const decrypted = await crypto.subtle.decrypt({
-              name: 'AES-GCM',
-              iv: iv,
-            }, 
-              ourEKey,
-              str2ab(encrypted.data)
-            );
-            console.log(ab2str(decrypted));
+            //UNWRAP OUR PRIVATE KEY 
+            base64ToArrayBuffer(JSON.parse(ourKey.privateKey).wrapped, async (ecdhPrivKeyBuffer) => {
+              const iv = Uint8Array.from(Object.values(JSON.parse(ourKey.privateKey).iv));
+              const privateKey = await crypto.subtle.unwrapKey(
+                'jwk',
+                ecdhPrivKeyBuffer,
+                ourEKey,
+                {
+                  name: 'AES-GCM',
+                  iv: iv
+                },
+                {
+                  name: 'ECDH',
+                  namedCurve: 'P-384'
+                },
+                true,
+                ["deriveKey", "deriveBits"]
+              );
+              console.log("Got Private Key");
+              console.log(privateKey)
+              //DERIVE THE ENCRYPTION KEY TO ENCRYPT / DECRYPT THE DATA
+              const dataEncryptionKey = await crypto.subtle.deriveKey(
+                {
+                  name: 'ECDH',
+                  public: publicKey
+                },
+                privateKey,
+                {
+                  name: 'AES-GCM',
+                  length: 256
+                },
+                false,
+                ["encrypt", "decrypt"]
+              );
+              const dataIv = Uint8Array.from(Object.values(encrypted.iv));
+              
+              console.log(encrypted.data);
+              console.log(str2ab(encrypted.data));
+              //DECRYPT THE DATA 
+              const decrypted = await crypto.subtle.decrypt(
+                {
+                  name: 'AES-GCM',
+                  iv: dataIv,
+                }, 
+                dataEncryptionKey,
+                str2ab(encrypted.data)
+              );
+              console.log(ab2str(decrypted));
+
+            })
           })
         })
       }
@@ -1017,6 +1115,7 @@
         }
 
         thisD.onKey = async (d) => {
+          console.log(d);
           if(d && d.key){
             localforage.setItem(`keys.user.${this.user.id}${this.path}`, JSON.stringify(d.key));
             if(thisD.key === d.key) return;
@@ -1026,6 +1125,7 @@
               return;
             }
           }else if(d.userId === thisVal.user.id){
+            console.log("GOtta create the key");
             //CREATE THE KEY 
             thisD.key = await window.crypto.subtle.generateKey(
               {
@@ -1037,7 +1137,7 @@
             );
             const key2Send = {};
             key2Send.publicKey = await crypto.subtle.exportKey('jwk', thisD.key.publicKey);
-            //DERIVE ENCRYPTION KEY 
+            //DERIVE ENCRYPTION KEY TO WRAP / UNWRAP THE GENERATED ECDH PRIVATE KEY
             const eKey = await crypto.subtle.deriveKey(
               {
                 name: 'ECDH',
@@ -1072,6 +1172,7 @@
               path: this.path,
               key: key2Send
             })
+            if(cb && typeof cb =='function') cb(thisKey);
           }else{
             console.log("Could not find Key");
           }
@@ -1111,6 +1212,7 @@
             }
           }
           
+          console.log(thisD)
           //ASK VALORIA SERVER <-- SHOULD ONLY DO THIS IF CANT ESTABLISH P2P CONNECTION
           thisVal.user.sockets[id].emit("Get Key from Path", {
             userId: thisD.user.id,
@@ -1123,8 +1225,6 @@
     }
 
     async shareEncryptionKey(user){
-      console.log("SHARING KEY WITH");
-      console.log(user);
       const thisD = this;
       const thisVal = thisD.user.valoria;
       const socket = thisVal.socket;
@@ -1154,7 +1254,7 @@
           true,
           ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
         )
-        //UNWRAP PRIVATE KEY
+        //UNWRAP OUR PRIVATE KEY
         const ourIv = Uint8Array.from(Object.values(JSON.parse(myKey.privateKey).iv));
         base64ToArrayBuffer(JSON.parse(myKey.privateKey).wrapped, async (privAb) => {
           const privateKey = await crypto.subtle.unwrapKey(
@@ -1166,6 +1266,8 @@
             true,
             ["deriveKey", 'deriveBits']
           );
+          console.log("READY TO SHARE KEYPAIR BECAUSE WE UNWRAPPED THIS PRIVATE KEY");
+          console.log(privateKey)
           //IMPORT THEIR PUBLIC KEY
           if(typeof user.ecdhPair.publicKey === 'string'){
             user.ecdhPair.publicKey = JSON.parse(user.ecdhPair.publicKey);

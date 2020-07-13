@@ -85,6 +85,7 @@ $('.valoriaAuthSubmit').on('click', () => {
 })
 
 async function startChat(){
+  clearInterval(rainbowHeader.timer);
   $('.valoriaHeader').text("Valoria Chat");
   $('.valoriaSecondHeader').text("Signed in as: " + valoria.user.username);
   $('.valoriaAuth').css('display', 'none');
@@ -207,6 +208,7 @@ async function sendMessage(msg){
     const time = Date.now();
     valoria.user.get('chat').get('users').get(currentChat.userId).getEncryptionKey((key) => {
       console.log("ITS THIS");
+      console.log(key);
       valoria.user.get('chat').get('users').get(currentChat.userId).get(time).set(msg, {
         encrypt: key
       });

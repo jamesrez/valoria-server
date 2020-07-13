@@ -14,8 +14,6 @@ body
 
   .valoria
 
-    h2.valoriaSecondHeader.hideScrollbar
-
     .valoriaAuth
       h1.valoriaHeader Welcome
       .valoriaDesc Hi, I'd like to be the first to welcome you to Valoria. We're all very excited to meet you.
@@ -23,7 +21,7 @@ body
       input.valoriaPasswordInput(placeholder="Password" type="password")
       .valoriaAuthSubmit="JOIN WITH USERNAME & PASSWORD"
       .valoriaJoinWithWeb3Wallet
-        | JOIN WITH WEB3 WALLET
+        | JOIN WITH WEB3 WALLET (RECOMMENDED)
 
     .valoriaChat
       .chatSidebar
@@ -33,6 +31,7 @@ body
         .chatContacts
 
       .chatMain
+        h2.valoriaSecondHeader.hideScrollbar
         .chatNav
           .chatName.hideScrollbar SELECT A PERSON TO CHAT WITH
           .chatVideoBtn VIDEO CHAT
