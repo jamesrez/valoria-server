@@ -206,6 +206,7 @@
       this.user;
       this.onlinePeers = {};
       this.connectedPeers = {};
+      this.onUser = {};
       this.users = {};
       this.datas = {};
       this.conns = {};
@@ -277,6 +278,11 @@
       });
       this.socket.on("newCandidate", (userId, candidate) => {
         this.onCandidate(userId, candidate, this)
+      });
+
+      this.socket.on('Get User', (user) => {
+        if(!this.onUser[user.id]) return;
+        this.onUser[user.id](user);
       });
   
     }
@@ -461,9 +467,8 @@
     async getUser(d, cb){
       const socket = this.socket;
       const thisVal = this;
-      socket.off('Get User');
       socket.emit('Get User', d);
-      socket.on('Get User', (user) => {
+      thisVal.onUser[d] = (user) => {
         thisVal.users[user.id] = new ValoriaUser({
           username: user.username,
           id: user.id,
@@ -475,7 +480,7 @@
         });
         localforage.setItem(`user.${user.id}`, user);
         if(user && cb && typeof cb === 'function') cb(thisVal.users[user.id]);
-      })
+      }
     }
 
     async getUsersByUsername(d, cb){
@@ -863,6 +868,7 @@
             true,
             ["deriveKey", "deriveBits"]
           );
+
           //DERIVE THE ENCRYPTION KEY TO ENCRYPT / DECRYPT THE DATA
           const dataEncryptionKey = await crypto.subtle.deriveKey(
             {
@@ -874,9 +880,10 @@
               name: 'AES-GCM',
               length: 256
             },
-            false,
+            true,
             ["encrypt", "decrypt"]
           );
+          console.log("ENCRYPTING...");
           //ENCRYPT THE DATA
           let encoded;
           if(typeof this.value === 'object'){
@@ -893,9 +900,12 @@
             dataEncryptionKey,
             encoded
           )
+
+          console.log(opts.encrypt.userId);
+          console.log(opts.encrypt.path);
           this.value = "VALENCRYPTED" + JSON.stringify({
             data: ab2str(abEncryptedValue),
-            iv: iv,
+            iv: dataIv,
             keyOwner: opts.encrypt.userId,
             keyPath: opts.encrypt.path
           })
@@ -917,10 +927,8 @@
               iv: dataIv,
             }, 
             dataEncryptionKey,
-            abEncryptedValue
+            str2ab(ab2str(abEncryptedValue))
           );
-          console.log("ATTEMPED");
-          console.log(decrypted)
           console.log(ab2str(decrypted));
 
 
@@ -942,10 +950,10 @@
       const thisD = this;
       const thisVal = thisD.user.valoria;
 
-      async function decrypt(encryptedStr){
+      async function decrypt(encryptedStr, cb){
         const encrypted = JSON.parse(encryptedStr.substr(12))
+        const keyPathArr = encrypted.keyPath.split('.')
         valoria.getUser(encrypted.keyOwner, (user) => {
-          const keyPathArr = encrypted.keyPath.split('.')
           let thisKeyD = user;
           for(let i=1;i<keyPathArr.length;i++){
             thisKeyD = thisKeyD.get(keyPathArr[i]);
@@ -995,8 +1003,6 @@
                 true,
                 ["deriveKey", "deriveBits"]
               );
-              console.log("Got Private Key");
-              console.log(privateKey)
               //DERIVE THE ENCRYPTION KEY TO ENCRYPT / DECRYPT THE DATA
               const dataEncryptionKey = await crypto.subtle.deriveKey(
                 {
@@ -1008,13 +1014,10 @@
                   name: 'AES-GCM',
                   length: 256
                 },
-                false,
+                true,
                 ["encrypt", "decrypt"]
               );
               const dataIv = Uint8Array.from(Object.values(encrypted.iv));
-              
-              console.log(encrypted.data);
-              console.log(str2ab(encrypted.data));
               //DECRYPT THE DATA 
               const decrypted = await crypto.subtle.decrypt(
                 {
@@ -1024,8 +1027,7 @@
                 dataEncryptionKey,
                 str2ab(encrypted.data)
               );
-              console.log(ab2str(decrypted));
-
+              cb(ab2str(decrypted));
             })
           })
         })
@@ -1035,34 +1037,55 @@
   
         if(d && cb && typeof cb === 'function'){
           if(typeof d === 'string' && d.startsWith('VALENCRYPTED')){
-            await decrypt(d)
+            decrypt(d, (dec) => {
+              callback(dec)
+            })
           }else if(typeof d === 'object'){
-            Object.keys(d).forEach(async (prop) => {
+            let decrypted = {};
+            Object.keys(d).forEach(async (prop, i) => {
               if(typeof d[prop] === 'string' && d[prop].startsWith('VALENCRYPTED')){
-                await decrypt(d[prop]);
+                decrypt(d[prop], (dec) => {
+                  decrypted[d[prop]] = dec;
+                  if(Object.keys(decrypted).length === Object.keys(d).length){
+                    callback(decrypted);
+                  }
+                });
               }
             })
+          }else{
+            callback(d);
           }
-          cb(d);
         }
   
         thisD.onNew = async (d) => {
           if(!d || thisD.value === d) return;
           if(typeof d === 'string' && d.startsWith('VALENCRYPTED')){
-            await decrypt(d)
+            decrypt(d, (dec) => {
+              callback(dec)
+            })
           }else if(typeof d === 'object'){
-            
+            let decrypted = {};
             Object.keys(d).forEach(async (prop) => {
               if(typeof d[prop] === 'string' && d[prop].startsWith('VALENCRYPTED')){
-                await decrypt(d[prop]);
+                decrypt(d[prop], (dec) => {
+                  decrypted[d[prop]] = dec;
+                  if(Object.keys(decrypted).length === Object.keys(d).length){
+                    callback(decrypted);
+                  }
+                });
               }
             })
+          }else{
+            callback(d);
           }
+        };
+
+        function callback(d){
           thisD.value = d;
           if(cb && typeof cb === 'function'){
             cb(d);
           }
-        };
+        }
   
         Object.keys(thisD.user.valoria.user.sockets).forEach((id) => {
           //ATTEMPT TO ASK USER THROUGH PEER TO PEER CONNECTION
@@ -1115,7 +1138,6 @@
         }
 
         thisD.onKey = async (d) => {
-          console.log(d);
           if(d && d.key){
             localforage.setItem(`keys.user.${this.user.id}${this.path}`, JSON.stringify(d.key));
             if(thisD.key === d.key) return;
@@ -1163,17 +1185,22 @@
               wrapped: arrayBufferToBase64(wrapped),
               iv: iv
             });
-            const thisKey = {userId : this.user.id, path: this.path, [thisVal.user.id] : key2Send};
+
+
+            const thisKey = {userId : thisD.user.id, path: thisD.path, [thisVal.user.id] : key2Send};
             //SAVE KEY TO PATH
-            localforage.setItem(`keys.user.${this.user.id}${this.path}`, JSON.stringify(thisKey));
+            console.log(d.userId);
+            console.log(thisKey);
+            localforage.setItem(`keys.user.${thisD.user.id}${thisD.path}`, JSON.stringify(thisKey));
             socket.emit("Save Key to Path", {
               keyUser : thisVal.user.id,
-              userId : thisVal.user.id,
-              path: this.path,
+              userId : thisD.user.id,
+              path: thisD.path,
               key: key2Send
             })
             if(cb && typeof cb =='function') cb(thisKey);
           }else{
+            console.log(thisD);
             console.log("Could not find Key");
           }
         };
@@ -1212,7 +1239,6 @@
             }
           }
           
-          console.log(thisD)
           //ASK VALORIA SERVER <-- SHOULD ONLY DO THIS IF CANT ESTABLISH P2P CONNECTION
           thisVal.user.sockets[id].emit("Get Key from Path", {
             userId: thisD.user.id,
@@ -1266,8 +1292,6 @@
             true,
             ["deriveKey", 'deriveBits']
           );
-          console.log("READY TO SHARE KEYPAIR BECAUSE WE UNWRAPPED THIS PRIVATE KEY");
-          console.log(privateKey)
           //IMPORT THEIR PUBLIC KEY
           if(typeof user.ecdhPair.publicKey === 'string'){
             user.ecdhPair.publicKey = JSON.parse(user.ecdhPair.publicKey);
