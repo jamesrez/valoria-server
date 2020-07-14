@@ -211,6 +211,7 @@
       this.datas = {};
       this.conns = {};
       this.ons = {};
+      this.keys = {};
       this.localStream;
       this.onCallIncoming;
       this.onCallAnswered;
@@ -467,19 +468,25 @@
     async getUser(d, cb){
       const socket = this.socket;
       const thisVal = this;
-      socket.emit('Get User', d);
-      thisVal.onUser[d] = (user) => {
-        thisVal.users[user.id] = new ValoriaUser({
-          username: user.username,
-          id: user.id,
-          sockets: user.sockets,
-          ecdhPair: user.ecdhPair,
-          ecdsaPair: user.ecdsaPair,
-          dimension: user.dimension,
-          valoria: this
-        });
-        localforage.setItem(`user.${user.id}`, user);
-        if(user && cb && typeof cb === 'function') cb(thisVal.users[user.id]);
+      if(thisVal.users[user.id] && cb && typeof cb === 'function') {
+        cb(thisVal.users[user.id]);
+      }else{
+        socket.emit('Get User', d);
+        thisVal.onUser[d] = (user) => {
+          thisVal.users[user.id] = new ValoriaUser({
+            username: user.username,
+            id: user.id,
+            sockets: user.sockets,
+            ecdhPair: user.ecdhPair,
+            ecdsaPair: user.ecdsaPair,
+            dimension: user.dimension,
+            valoria: this
+          });
+          localforage.setItem(`user.${user.id}`, user);
+          if(user && cb && typeof cb === 'function') {
+            cb(thisVal.users[user.id]);
+          } 
+        }
       }
     }
 
@@ -738,6 +745,7 @@
       this.onNew;
       this.onKey;
       this.onPeerConnected;
+      this.decrypted = {};
     }
   
     get(key){
@@ -949,11 +957,16 @@
     async on(cb){
       const thisD = this;
       const thisVal = thisD.user.valoria;
+      const loaded = {}
+      // thisD.decrypted = {};
 
       async function decrypt(encryptedStr, cb){
+        loaded[encryptedStr] = encryptedStr;
         const encrypted = JSON.parse(encryptedStr.substr(12))
         const keyPathArr = encrypted.keyPath.split('.')
+        console.log(encrypted.data);
         valoria.getUser(encrypted.keyOwner, (user) => {
+          console.log(encrypted.data);
           let thisKeyD = user;
           for(let i=1;i<keyPathArr.length;i++){
             thisKeyD = thisKeyD.get(keyPathArr[i]);
@@ -971,6 +984,7 @@
               true,
               []
             );
+
             //DERIVE OUR ENCRYPTION KEY TO UNWRAP OUR ECDH PRIVATE KEY
             const ourEKey = await crypto.subtle.deriveKey(
               {
@@ -1028,6 +1042,7 @@
                 str2ab(encrypted.data)
               );
               cb(ab2str(decrypted));
+              return;
             })
           })
         })
@@ -1041,13 +1056,12 @@
               callback(dec)
             })
           }else if(typeof d === 'object'){
-            let decrypted = {};
             Object.keys(d).forEach(async (prop, i) => {
               if(typeof d[prop] === 'string' && d[prop].startsWith('VALENCRYPTED')){
                 decrypt(d[prop], (dec) => {
-                  decrypted[d[prop]] = dec;
-                  if(Object.keys(decrypted).length === Object.keys(d).length){
-                    callback(decrypted);
+                  thisD.decrypted[prop] = dec;
+                  if(Object.keys(thisD.decrypted).length === Object.keys(d).length){
+                    callback(thisD.decrypted);
                   }
                 });
               }
@@ -1064,14 +1078,11 @@
               callback(dec)
             })
           }else if(typeof d === 'object'){
-            let decrypted = {};
             Object.keys(d).forEach(async (prop) => {
               if(typeof d[prop] === 'string' && d[prop].startsWith('VALENCRYPTED')){
                 decrypt(d[prop], (dec) => {
-                  decrypted[d[prop]] = dec;
-                  if(Object.keys(decrypted).length === Object.keys(d).length){
-                    callback(decrypted);
-                  }
+                  thisD.decrypted[prop] = dec;
+                  callback(thisD.decrypted);
                 });
               }
             })
@@ -1081,6 +1092,7 @@
         };
 
         function callback(d){
+          console.log(d)
           thisD.value = d;
           if(cb && typeof cb === 'function'){
             cb(d);
@@ -1128,126 +1140,131 @@
       const thisD = this;
       const thisVal = thisD.user.valoria;
       const socket = thisVal.socket;
-      localforage.getItem(`keys.user.${this.user.id}${this.path}`).then((keyString) => {
 
-        if(keyString && typeof keyString === 'string'){
-          if(cb && typeof cb === 'function'){
-            cb(JSON.parse(keyString));
-            return
-          }
-        }
+      if(thisVal.keys[this.user.id + this.path] && cb && typeof cb === 'function'){
+        cb(thisVal.keys[this.user.id + this.path])
+      }else{
+        localforage.getItem(`keys.user.${this.user.id}${this.path}`).then((keyString) => {
 
-        thisD.onKey = async (d) => {
-          if(d && d.key){
-            localforage.setItem(`keys.user.${this.user.id}${this.path}`, JSON.stringify(d.key));
-            if(thisD.key === d.key) return;
-            thisD.key = d.key;
+          if(keyString && typeof keyString === 'string'){
             if(cb && typeof cb === 'function'){
-              cb(d.key);
+              thisVal.keys[this.user.id + this.path] = JSON.parse(keyString);
+              cb(JSON.parse(keyString));
               return;
             }
-          }else if(d.userId === thisVal.user.id){
-            console.log("GOtta create the key");
-            //CREATE THE KEY 
-            thisD.key = await window.crypto.subtle.generateKey(
-              {
-                name: "ECDH",
-                namedCurve: "P-384"
-              },
-              true,
-              ["deriveKey", "deriveBits"]
-            );
-            const key2Send = {};
-            key2Send.publicKey = await crypto.subtle.exportKey('jwk', thisD.key.publicKey);
-            //DERIVE ENCRYPTION KEY TO WRAP / UNWRAP THE GENERATED ECDH PRIVATE KEY
-            const eKey = await crypto.subtle.deriveKey(
-              {
-                name: 'ECDH',
-                public: thisD.key.publicKey
-              },
-              thisVal.user.ecdhPair.privateKey,
-              {
-                name: 'AES-GCM',
-                length: 256
-              },
-              true,
-              ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
-            )
-            //WRAP THE PRIVATE KEY
-            const iv = window.crypto.getRandomValues(new Uint8Array(12));
-            const wrapped = await crypto.subtle.wrapKey(
-              'jwk',
-              thisD.key.privateKey,
-              eKey,
-              {name: 'AES-GCM', iv}
-            )
-            key2Send.privateKey = JSON.stringify({
-              wrapped: arrayBufferToBase64(wrapped),
-              iv: iv
-            });
-
-
-            const thisKey = {userId : thisD.user.id, path: thisD.path, [thisVal.user.id] : key2Send};
-            //SAVE KEY TO PATH
-            console.log(d.userId);
-            console.log(thisKey);
-            localforage.setItem(`keys.user.${thisD.user.id}${thisD.path}`, JSON.stringify(thisKey));
-            socket.emit("Save Key to Path", {
-              keyUser : thisVal.user.id,
-              userId : thisD.user.id,
-              path: thisD.path,
-              key: key2Send
-            })
-            if(cb && typeof cb =='function') cb(thisKey);
-          }else{
-            console.log(thisD);
-            console.log("Could not find Key");
           }
-        };
   
-        Object.keys(thisD.user.valoria.user.sockets).forEach((id) => {
-
-          //ATTEMPT TO ASK USER THROUGH PEER TO PEER CONNECTION
-          if(thisD.user.id !== thisVal.user.id){
-            if(thisVal.conns[thisD.user.id] && thisVal.conns[thisD.user.id].dataChannel){
-              const data = {
-                type: 'getKey',
-                path: thisD.user.id + thisD.path,
-                userId: thisD.user.id,
-                keyUser: thisVal.user.id
+          thisD.onKey = async (d) => {
+            if(d && d.key){
+              localforage.setItem(`keys.user.${this.user.id}${this.path}`, JSON.stringify(d.key));
+              if(thisD.key === d.key) return;
+              thisD.key = d.key;
+              if(cb && typeof cb === 'function'){
+                thisVal.keys[this.user.id + this.path] = d.key;
+                cb(d.key);
+                return;
               }
-              thisVal.conns[thisD.user.id].dataChannel.send(JSON.stringify(data));
-            }else{
-              thisVal.user.sockets[id].emit('Connect to User', {
-                toUserId: thisD.user.id,
-                userId: thisVal.user.id,
-                toUsername: thisVal.onlinePeers[thisD.user.id].username,
-                username: thisVal.user.username,
-                streaming: false,
-                dataPath: thisD.user.id + thisD.path
+            }else if(d.userId === thisVal.user.id){
+              console.log("GOtta create the key");
+              //CREATE THE KEY 
+              thisD.key = await window.crypto.subtle.generateKey(
+                {
+                  name: "ECDH",
+                  namedCurve: "P-384"
+                },
+                true,
+                ["deriveKey", "deriveBits"]
+              );
+              const key2Send = {};
+              key2Send.publicKey = await crypto.subtle.exportKey('jwk', thisD.key.publicKey);
+              //DERIVE ENCRYPTION KEY TO WRAP / UNWRAP THE GENERATED ECDH PRIVATE KEY
+              const eKey = await crypto.subtle.deriveKey(
+                {
+                  name: 'ECDH',
+                  public: thisD.key.publicKey
+                },
+                thisVal.user.ecdhPair.privateKey,
+                {
+                  name: 'AES-GCM',
+                  length: 256
+                },
+                true,
+                ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
+              )
+              //WRAP THE PRIVATE KEY
+              const iv = window.crypto.getRandomValues(new Uint8Array(12));
+              const wrapped = await crypto.subtle.wrapKey(
+                'jwk',
+                thisD.key.privateKey,
+                eKey,
+                {name: 'AES-GCM', iv}
+              )
+              key2Send.privateKey = JSON.stringify({
+                wrapped: arrayBufferToBase64(wrapped),
+                iv: iv
               });
-              thisD.onPeerConnected = (conn) => {
-                if(!conn || !conn.dataChannel) return;
+  
+  
+              const thisKey = {userId : thisD.user.id, path: thisD.path, [thisVal.user.id] : key2Send};
+              //SAVE KEY TO PATH
+              localforage.setItem(`keys.user.${thisD.user.id}${thisD.path}`, JSON.stringify(thisKey));
+              socket.emit("Save Key to Path", {
+                keyUser : thisVal.user.id,
+                userId : thisD.user.id,
+                path: thisD.path,
+                key: key2Send
+              })
+              if(cb && typeof cb =='function') cb(thisKey);
+            }else{
+              console.log(thisD);
+              console.log("Could not find Key");
+            }
+          };
+    
+          Object.keys(thisD.user.valoria.user.sockets).forEach((id) => {
+  
+            //ATTEMPT TO ASK USER THROUGH PEER TO PEER CONNECTION
+            if(thisD.user.id !== thisVal.user.id){
+              if(thisVal.conns[thisD.user.id] && thisVal.conns[thisD.user.id].dataChannel){
                 const data = {
                   type: 'getKey',
-                  path: conn.dataPath,
+                  path: thisD.user.id + thisD.path,
                   userId: thisD.user.id,
                   keyUser: thisVal.user.id
                 }
-                conn.dataChannel.send(JSON.stringify(data));
+                thisVal.conns[thisD.user.id].dataChannel.send(JSON.stringify(data));
+              }else{
+                thisVal.user.sockets[id].emit('Connect to User', {
+                  toUserId: thisD.user.id,
+                  userId: thisVal.user.id,
+                  toUsername: thisVal.onlinePeers[thisD.user.id].username,
+                  username: thisVal.user.username,
+                  streaming: false,
+                  dataPath: thisD.user.id + thisD.path
+                });
+                thisD.onPeerConnected = (conn) => {
+                  if(!conn || !conn.dataChannel) return;
+                  const data = {
+                    type: 'getKey',
+                    path: conn.dataPath,
+                    userId: thisD.user.id,
+                    keyUser: thisVal.user.id
+                  }
+                  conn.dataChannel.send(JSON.stringify(data));
+                }
               }
             }
-          }
-          
-          //ASK VALORIA SERVER <-- SHOULD ONLY DO THIS IF CANT ESTABLISH P2P CONNECTION
-          thisVal.user.sockets[id].emit("Get Key from Path", {
-            userId: thisD.user.id,
-            path: thisD.path,
-            keyUser: thisVal.user.id
+            
+            //ASK VALORIA SERVER <-- SHOULD ONLY DO THIS IF CANT ESTABLISH P2P CONNECTION
+            thisVal.user.sockets[id].emit("Get Key from Path", {
+              userId: thisD.user.id,
+              path: thisD.path,
+              keyUser: thisVal.user.id
+            });
+  
           });
-
-        });
-      })
+        })
+      }
     }
 
     async shareEncryptionKey(user){
@@ -1256,7 +1273,7 @@
       const socket = thisVal.socket;
       if(thisD.user.id !== thisVal.user.id) return;
       thisD.getEncryptionKey(async (key) => {
-        if(!key[thisVal.user.id]) return;
+        if(key[user.id] || !key[thisVal.user.id]) return;
         const myKey = key[thisVal.user.id];
         //IMPORT OUR PUBLIC KEY
         const publicKey = await crypto.subtle.importKey(
