@@ -468,8 +468,8 @@
     async getUser(d, cb){
       const socket = this.socket;
       const thisVal = this;
-      if(thisVal.users[user.id] && cb && typeof cb === 'function') {
-        cb(thisVal.users[user.id]);
+      if(thisVal.users[d] && cb && typeof cb === 'function') {
+        cb(thisVal.users[d]);
       }else{
         socket.emit('Get User', d);
         thisVal.onUser[d] = (user) => {
