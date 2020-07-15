@@ -16,10 +16,12 @@
       "description": "Create a bucket at https://s3.console.aws.amazon.com/s3/home"
     },
     "TWILIO_ACCOUNT_SID": {
-      "description": "Find at https://www.twilio.com/console"
+      "description": "Find at https://www.twilio.com/console",
+      "required": false
     },
     "TWILIO_AUTH_TOKEN": {
-      "description": "Find at https://www.twilio.com/console"
+      "description": "Find at https://www.twilio.com/console",
+      "required": false
     }
   }
 }
