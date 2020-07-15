@@ -198,7 +198,7 @@ function startServer(){
         data.servers[serverUrl] = serverUrl;
         servers[serverUrl] = serverIo.connect(serverUrl, {reconnection: true});
       })
-      saveData();
+      saveData(data);
     })
   }
 
@@ -206,7 +206,7 @@ function startServer(){
     const url = "https://" + req.headers.host;
     if(!data.servers[url]){
       data.servers[url] = url;
-      saveData();
+      saveData(data);
       servers[serverUrl].emit("New Server", url);
     }
     res.render('index.pug');
@@ -688,7 +688,7 @@ function startServer(){
       if(!data.servers[url]){
         console.log("New Server at " + url);
         data.servers[url] = url;
-        saveData();
+        saveData(data);
         servers[url] = serverIo.connect(url);
       }
     })
