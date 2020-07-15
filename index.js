@@ -18,6 +18,9 @@ app.use(express.json())
 app.use(express.static('client'));
 app.get('/', (req, res) => res.render('index.pug'));
 
+console.log("HOST")
+console.log(os.hostname());
+
 const port = process.env.PORT || 80;
 
 const fs = require('fs');
