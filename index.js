@@ -188,6 +188,9 @@ function startServer(){
 
   if(process.env.AWS_ACCESS_KEY_ID){
     //Ask the last server
+    if(!data.servers) data.servers = {
+      ['https://valoria-server-0.herokuapp.com/'] : 'https://valoria-server-0.herokuapp.com/'
+    };
     const server0 = serverIo.connect(Object.keys(data.servers)[Object.keys(data.servers).length - 1]);
     server0.emit("Get all Servers");
     server0.on("Get all Servers", (s) => {
