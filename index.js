@@ -3,6 +3,7 @@ const express= require('express');
 const app = express();
 const server = require('http').Server(app);
 const io = require('socket.io')(server);
+const serverIo = require('socket.io-client');
 const bodyParser = require('body-parser');
 const { Crypto } = require("@peculiar/webcrypto");
 const os = require( 'os' );
@@ -16,11 +17,8 @@ app.set('views', 'client')
 app.set('view engine', 'pug');
 app.use(express.json())
 app.use(express.static('client'));
-app.get('/', (req, res) => {
-  console.log("Host");
-  console.log(req.headers.host);
-  res.render('index.pug');
-});
+
+const servers = {};
 
 const port = process.env.PORT || 80;
 
@@ -30,7 +28,10 @@ let s3 = null;
 let data = {
   online: {},
   usernames: {},
-  dimensions: {}
+  dimensions: {},
+  servers: {
+    ['https://valoria-server-0.herokuapp.com/'] : 'https://valoria-server-0.herokuapp.com/'
+  }
 };
 
 let iceServers = [{ url: "stun:stun.l.google.com:19302" }];
@@ -97,7 +98,7 @@ if(!process.env.AWS_ACCESS_KEY_ID){
       const token = await twilioClient.tokens.create();
       iceServers = token.iceServers;
     }
-    startSocketIO();
+    startServer();
   });
 } else {
   AWS.config.update({region: 'us-west-1'});
@@ -110,15 +111,17 @@ if(!process.env.AWS_ACCESS_KEY_ID){
       data = {
         "usernames": {},
         "online": {},
-        "peers": {},
-        "dimensions": {}
+        "dimensions": {},
+        "servers": {
+          ['https://valoria-server-0.herokuapp.com/'] : 'https://valoria-server-0.herokuapp.com/'
+        }
       }
       saveData(data, async () => {
         if(process.env.TWILIO_ACCOUNT_SID){
           const token = await twilioClient.tokens.create();
           iceServers = token.iceServers;
         }
-        startSocketIO();
+        startServer();
       })
     }else{
       data = JSON.parse(fileData.Body.toString());
@@ -130,7 +133,7 @@ if(!process.env.AWS_ACCESS_KEY_ID){
           const token = await twilioClient.tokens.create();
           iceServers = token.iceServers
         }
-        startSocketIO();
+        startServer();
       });
     }
   });
@@ -149,11 +152,6 @@ function saveData(data, cb) {
     });
   }
 }
-
-server.listen(port, () => {
-  console.log("Listening on Port " + port);
-});
-
 
 if (process.env.NODE_ENV === "production") {
 	/*
@@ -182,7 +180,37 @@ function base64ToArrayBuffer(dataUrl, cb) {
   return Uint8Array.from(atob(dataUrl), c => c.charCodeAt(0))
 }
 
-function startSocketIO(){
+function startServer(){
+
+  server.listen(port, () => {
+    console.log("Listening on Port " + port);
+  });
+
+  if(process.env.AWS_ACCESS_KEY_ID){
+    //Ask the last server
+    const server0 = serverIo.connect(Object.keys(data.servers)[Object.keys(data.servers).length - 1]);
+    server0.emit("Get all Servers");
+    server0.on("Get all Servers", (s) => {
+      Object.keys(s).forEach((serverUrl) => {
+        data.servers[serverUrl] = serverUrl;
+        servers[serverUrl] = serverIo.connect(serverUrl, {reconnection: true});
+      })
+      saveData();
+    })
+  }
+
+  app.get('/', (req, res) => {
+    const url = "https://" + req.headers.host;
+    if(!data.servers[url]){
+      data.servers[url] = url;
+      saveData();
+      servers[serverUrl].emit("New Server", url);
+    }
+    res.render('index.pug');
+  });
+
+  
+
   io.on('connection', function (socket) {
 
     //MAKE SURE EACH ROUTE THAT NEEDS AUTHENTICATION USES VERIFY FROM A SIGNATURE
@@ -653,7 +681,18 @@ function startSocketIO(){
       io.to(socketId).emit("answer", userId, answer);
     });
 
+    socket.on('New Server', (url) => {
+      if(!data.servers[url]){
+        console.log("New Server at " + url);
+        data.servers[url] = url;
+        saveData();
+        servers[url] = serverIo.connect(url);
+      }
+    })
 
+    socket.on("Get all Servers", () => {
+      socket.emit("Get all Servers", data.servers);
+    });
 
   })
 };
