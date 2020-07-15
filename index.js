@@ -16,10 +16,11 @@ app.set('views', 'client')
 app.set('view engine', 'pug');
 app.use(express.json())
 app.use(express.static('client'));
-app.get('/', (req, res) => res.render('index.pug'));
-
-console.log("HOST")
-console.log(os.hostname());
+app.get('/', (req, res) => {
+  console.log("Host");
+  console.log(req.headers.host);
+  res.render('index.pug');
+});
 
 const port = process.env.PORT || 80;
 
@@ -176,16 +177,6 @@ if (process.env.NODE_ENV === "production") {
 	});
 }
 
-app.set('views', './client');
-app.set('view engine', 'pug');
-app.use(express.json());
-app.use(express.static('client'));
-app.use(bodyParser.json());//json parser
-app.use(bodyParser.urlencoded({ extended: true }));//urlencoded parser
-
-app.get('/', (req, res) => {
-  res.render('index.pug');
-});
 
 function base64ToArrayBuffer(dataUrl, cb) {  
   return Uint8Array.from(atob(dataUrl), c => c.charCodeAt(0))
