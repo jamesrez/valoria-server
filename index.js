@@ -203,11 +203,13 @@ function startServer(){
   }
 
   app.get('/', (req, res) => {
-    const url = "https://" + req.headers.host;
+    const url = "https://" + req.headers.host + "/";
     if(!data.servers[url]){
       data.servers[url] = url;
       saveData(data);
-      servers[serverUrl].emit("New Server", url);
+      Object.keys(servers).forEach((serverUrl) => {
+        servers[serverUrl].emit("New Server", url);
+      })
     }
     res.render('index.pug');
   });
