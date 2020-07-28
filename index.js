@@ -586,8 +586,9 @@ function startServer(){
         getKeyFromPath(uniquePath, (keys) =>{
           if(!keys || !keys[uniquePath]) {
             socket.emit("Get Key from Path", {err: "No Key Found", key: null, path: d.path, userId: d.userId});
+          }else{
+            socket.emit("Get Key from Path", {key: keys[uniquePath], path: d.path, userId: d.userId});
           }
-          socket.emit("Get Key from Path", {key: keys[uniquePath], path: d.path, userId: d.userId});
         })
       })
     })
