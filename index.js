@@ -475,6 +475,7 @@ function startServer(){
             if(i === len - 2) {
               d[pathArr[i + 1]] = body.data;
             }
+            console.log(uniquePath)
             io.to(uniquePath).emit("Get User Data", {data: d, path: uniquePath});
             saveDataToPath(uniquePath, d)
           }
