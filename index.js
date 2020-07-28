@@ -447,28 +447,13 @@ function startServer(){
 
     function saveDataToPath(uniquePath, value){
       if(!process.env.AWS_ACCESS_KEY_ID){
-        let d
-        try {
-          d = require(`./data/${uniquePath}.json`);
-        } catch {
-          
-        }
-        if(!d) d = {};
-        // saveDataToPath(user.data, d.userId, d.path, d.data);
         fs.writeFile(`./data/${uniquePath}.json`, JSON.stringify(value, null, 2), function (err) {
           if (err) return console.log(err);
         });
       }else {
-        s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${uniquePath}.json`}, function(err, d) {
-          // if(err) console.log("S3 Err: ", err);
-          if(!d) return;
-          d = JSON.parse(d.Body.toString())
-          if(!d) d = {};
-          // saveDataToPath(user.data, d.userId, d.path, d.data)
-          s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${uniquePath}.json`, Body : JSON.stringify(value, null, 2)}, (err, fileData) => {
-            if (err) console.error(`Upload Error ${err}`);
-          });
-        })
+        s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${uniquePath}.json`, Body : JSON.stringify(value, null, 2)}, (err, fileData) => {
+          if (err) console.error(`Upload Error ${err}`);
+        });
       }
     }
 
