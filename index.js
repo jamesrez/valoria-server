@@ -469,8 +469,8 @@ function startServer(){
             saveDataToPath(path, d)
           }else{
             if(!d || typeof d !== 'object') d = {};
-            console.log(pathArr[i]);
-            console.log(pathArr[i + 1])
+            console.log(pathArr);
+            console.log(i)
             d[pathArr[i + 1]] = d[pathArr[i + 1]] || {};
             if(i === len - 2) {
               d[pathArr[i + 1]] = body.data;
