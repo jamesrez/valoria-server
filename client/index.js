@@ -147,6 +147,7 @@ async function connectToPeer(peer){
       // data.getEncryptionKey((key) => {
       // })
       data.on((msgTimes) => {
+        console.log(msgTimes);
         if(msgTimes && typeof msgTimes === 'object'){
           Object.keys(msgTimes).forEach((time) => {
             if(loaded[username + time]) return;
@@ -207,8 +208,6 @@ async function sendMessage(msg){
   if(currentChat.userId){
     const time = Date.now();
     valoria.user.get('chat').get('users').get(currentChat.userId).getEncryptionKey((key) => {
-      console.log("ITS THIS");
-      console.log(key);
       valoria.user.get('chat').get('users').get(currentChat.userId).get(time).set(msg, {
         encrypt: key
       });

@@ -86,11 +86,11 @@ let iceServers = [{ url: "stun:stun.l.google.com:19302" }];
 
 if(!process.env.AWS_ACCESS_KEY_ID){
   try {
-    let d = fs.readFileSync('./data/data.json', 'utf8');
+    let d = fs.readFileSync('./data/server.json', 'utf8');
     if(d) Object.assign(data, JSON.parse(d));
   } catch {
     fs.mkdirSync('./data/', {recursive : true});
-    fs.writeFileSync('data/data.json', data, {flag: 'a'});
+    fs.writeFileSync('data/server.json', data, {flag: 'a'});
   }
   data.online = {};
   saveData(data, async () => {
@@ -106,7 +106,7 @@ if(!process.env.AWS_ACCESS_KEY_ID){
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
   });
-  s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : "data.json"}, function(err, fileData) {
+  s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : "server.json"}, function(err, fileData) {
     if(err) {
       data = {
         "usernames": {},
@@ -141,12 +141,12 @@ if(!process.env.AWS_ACCESS_KEY_ID){
 
 function saveData(data, cb) {
   if(!process.env.AWS_ACCESS_KEY_ID){
-    fs.writeFile('./data/data.json', JSON.stringify(data, null, 2), function (err) {
+    fs.writeFile('./data/server.json', JSON.stringify(data, null, 2), function (err) {
       if (err) return console.log(err);
       if(cb && typeof cb == 'function') cb();
     });
   }else {
-    s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : "data.json", Body : JSON.stringify(data, null, 2)}, (err, fileData) => {
+    s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : "server.json", Body : JSON.stringify(data, null, 2)}, (err, fileData) => {
       if (err) console.error(`Upload Error ${err}`);
       if(cb && typeof cb == 'function') cb();
     });
@@ -252,8 +252,6 @@ function startServer(){
           ecdsaPair: d.ecdsaPair,
           ecdhPair: d.ecdhPair,
           dimension: dimension,
-          data : {},
-          keys: {}
         }
         if(!data.usernames[d.username]) data.usernames[d.username] = {};
         data.usernames[d.username][d.userId] = {
@@ -447,102 +445,150 @@ function startServer(){
       saveData(data);
     })
 
-    function saveDataToPath(data, userId, path, value){
-      let uniquePath = userId;
-      for (var i=0, pathArr=path.substr(1).split('.'), len=pathArr.length; i<len; i++){
-        if(i === len - 1){
-          data[pathArr[i]] = value;
-          io.to(uniquePath).emit("Get User Data", {data, path: uniquePath});
-        }else{
-          data[pathArr[i]] = data[pathArr[i]] || {};
-          if(data && typeof data === 'object'){
-            let data2Send = {};
-            Object.assign(data2Send, data);
-            Object.keys(data2Send).forEach((key) => {
-              if(data2Send[key] && typeof data2Send[key] === 'object'){
-                data2Send[key] = {};
-              }
-            })
-            io.to(uniquePath).emit("Get User Data", {data: data2Send, path: uniquePath});
-          }else{
-            io.to(uniquePath).emit("Get User Data", {data, path: uniquePath});
-          }
-          data = data[pathArr[i]];
+    function saveDataToPath(uniquePath, value){
+      if(!process.env.AWS_ACCESS_KEY_ID){
+        let d
+        try {
+          d = require(`./data/${uniquePath}.json`);
+        } catch {
+          
         }
-        uniquePath += "." + pathArr[i];
-      };
+        if(!d) d = {};
+        // saveDataToPath(user.data, d.userId, d.path, d.data);
+        fs.writeFile(`./data/${uniquePath}.json`, JSON.stringify(value, null, 2), function (err) {
+          if (err) return console.log(err);
+        });
+      }else {
+        s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${uniquePath}.json`}, function(err, d) {
+          // if(err) console.log("S3 Err: ", err);
+          if(!d) return;
+          d = JSON.parse(d.Body.toString())
+          if(!d) d = {};
+          // saveDataToPath(user.data, d.userId, d.path, d.data)
+          s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${uniquePath}.json`, Body : JSON.stringify(value, null, 2)}, (err, fileData) => {
+            if (err) console.error(`Upload Error ${err}`);
+          });
+        })
+      }
     }
 
-    socket.on("Save User Data", async (d) => {
-      if(data.online[socket.id]){
-        if(!process.env.AWS_ACCESS_KEY_ID){
-          let user
-          try {
-           user = require(`./data/${d.userId}.json`);
-          } catch {
-            return;
-          }
-          if(!user.data) user.data = {};
-          saveDataToPath(user.data, d.userId, d.path, d.data);
-          fs.writeFile(`./data/${d.userId}.json`, JSON.stringify(user, null, 2), function (err) {
-            if (err) return console.log(err);
-          });
-        }else {
-          s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`}, function(err, user) {
-            // if(err) console.log("S3 Err: ", err);
-            if(!user) return;
-            user = JSON.parse(user.Body.toString())
-            if(!user.data) user.data = {};
-            saveDataToPath(user.data, d.userId, d.path, d.data)
-            s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`, Body : JSON.stringify(user, null, 2)}, (err, fileData) => {
-              if (err) console.error(`Upload Error ${err}`);
-            });
-          })
-        }
-      }
-    })
-
-    function getDataFromPath(data, path){
-      for (var i=0, path=path.substr(1).split('.'), len=path.length; i<len; i++){
-        if(!data || typeof data !== 'object') data = {};
-        data = data[path[i]];
-      };
-      if(data && typeof data === 'object'){
-        let data2Return = {};
-        Object.assign(data2Return, data);
-        Object.keys(data2Return).forEach((key) => {
-          if(data2Return[key] && typeof data2Return[key] === 'object'){
-            data2Return[key] = {};
+    socket.on("Save User Data", async (body) => {
+      //TODO: VERIFY USER SIGNATURE
+      let uniquePath = body.userId;
+      for (var i=0, pathArr=body.path.substr(1).split('.'), len=pathArr.length; i<len; i++){
+        uniquePath += "." + pathArr[i];
+        getDataFromPath(uniquePath, (d) => {
+          if(i === len - 1){
+            d = body.data;
+            io.to(uniquePath).emit("Get User Data", {d, path: uniquePath});
+            saveDataToPath(uniquePath, d)
+          }else{
+            if(!d || typeof d !== 'object') d = {};
+            d[pathArr[i + 1]] = d[pathArr[i + 1]] || {};
+            if(i === len - 2) {
+              d[pathArr[i + 1]] = body.data;
+            }
+            io.to(uniquePath).emit("Get User Data", {data: d, path: uniquePath});
+            saveDataToPath(uniquePath, d)
           }
         })
-        return data2Return;
-      }else{
-        return data;
+      };
+      
+    })
+
+    function getDataFromPath(path, cb){
+      
+      if(!process.env.AWS_ACCESS_KEY_ID){
+        try {
+         d = require(`./data/${path}.json`);
+         if(d) {
+          cb(d);
+         }else {
+           cb(null)
+         }
+        } catch {
+          cb(null)
+        }
+      } else {
+        s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${path}.json`}, function(err, d) {
+          if(d && d.Body){
+            d = JSON.parse(d.Body.toString());
+            cb(d);
+          }else{
+            cb(null)
+          }
+        })
       }
+
+
+      // for (var i=0, path=path.substr(1).split('.'), len=path.length; i<len; i++){
+      //   if(!data || typeof data !== 'object') data = {};
+      //   data = data[path[i]];
+      // };
+      // if(data && typeof data === 'object'){
+      //   let data2Return = {};
+      //   Object.assign(data2Return, data);
+      //   Object.keys(data2Return).forEach((key) => {
+      //     if(data2Return[key] && typeof data2Return[key] === 'object'){
+      //       data2Return[key] = {};
+      //     }
+      //   })
+      //   return data2Return;
+      // }else{
+      //   return data;
+      // }
     }
 
     socket.on("Get User Data", async(d) => {
+      //TODO: GET PUBKEY AND VERIFY DATA SIGNATURE
       getUserById(d.userId, (user) => {
-        if(!user || !user.data) return;
+        if(!user) return;
         const uniquePath = d.userId + d.path;
         socket.join(uniquePath);
-        const thisData = getDataFromPath(user.data, d.path);
-        socket.emit("Get User Data", {data: thisData, path: uniquePath});
+        getDataFromPath(uniquePath, (thisData) => {
+          socket.emit("Get User Data", {data: thisData, path: uniquePath});
+        });
       })
     })
 
+
+    function getKeyFromPath(path, cb){
+
+      if(!process.env.AWS_ACCESS_KEY_ID){
+        try {
+         key = require(`./data/${path}.json`);
+         if(key) {
+          cb(key);
+         }else {
+          cb(null)
+         }
+        } catch {
+          cb(null)
+        }
+      } else {
+        s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${path}.json`}, function(err, keyData) {
+          if(keyData && keyData.Body){
+            keyData = JSON.parse(keyData.Body.toString());
+            cb(keyData);
+          }else{
+            cb(null)
+          }
+        })
+      }
+    }
+
     socket.on("Get Key from Path", async (d) => {
       getUserById(d.userId, (user) => {
-        if(!user || !user.keys) {
+        if(!user) {
           socket.emit("Get Key from Path", {err: "No Key Found", key: null, path: d.path, userId: d.userId});
         }
         const uniquePath = d.userId + d.path;
-        console.log(uniquePath);
-        const thisKey = user.keys[uniquePath];
-        if(!thisKey) {
-          socket.emit("Get Key from Path", {err: "No Key Found", key: null, path: d.path, userId: d.userId});
-        }
-        socket.emit("Get Key from Path", {key: thisKey, path: d.path, userId: d.userId});
+        getKeyFromPath(uniquePath, (keys) =>{
+          if(!keys || !keys[uniquePath]) {
+            socket.emit("Get Key from Path", {err: "No Key Found", key: null, path: d.path, userId: d.userId});
+          }
+          socket.emit("Get Key from Path", {key: keys[uniquePath], path: d.path, userId: d.userId});
+        })
       })
     })
 
@@ -550,19 +596,22 @@ function startServer(){
       getUserById(d.userId, (user) => {
         if(!user) return;
         const uniquePath = d.userId + d.path;
-        user.keys[uniquePath] = user.keys[uniquePath] || {};
-        user.keys[uniquePath][d.keyUser] = d.key
-        if(!user.keys[uniquePath].path) user.keys[uniquePath].path = d.path;
-        if(!user.keys[uniquePath].userId) user.keys[uniquePath].userId = d.userId;
-        if(!process.env.AWS_ACCESS_KEY_ID){
-          fs.writeFile(`./data/${d.userId}.json`, JSON.stringify(user, null, 2), function (err) {
-            if (err) return console.log(err);
-          });
-        } else {
-          s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`, Body : JSON.stringify(user, null, 2)}, (err, fileData) => {
-            if (err) console.error(`Upload Error ${err}`);
-          });
-        }
+        
+        getKeyFromPath(uniquePath, (keys) => {
+          if(!keys) keys = {};
+          keys[d.keyUser] = d.key
+          if(!keys.path) keys.path = d.path;
+          if(!keys.userId) keys.userId = d.userId;
+          if(!process.env.AWS_ACCESS_KEY_ID){
+            fs.writeFile(`./data/keys.${uniquePath}.json`, JSON.stringify(keys, null, 2), function (err) {
+              if (err) return console.log(err);
+            });
+          } else {
+            s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `keys.${uniquePath}.json`, Body : JSON.stringify(keys, null, 2)}, (err, fileData) => {
+              if (err) console.error(`Upload Error ${err}`);
+            });
+          }
+        })
       })
     });
 

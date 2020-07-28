@@ -386,13 +386,17 @@
         }, true, ['verify']);
         base64ToArrayBuffer(JSON.parse(d.ecdsaPair.privateKey).wrapped, async (ecdsaPrivKeyBuffer) => {
           d.ecdsaPair.privateKey = await unwrapECDSAKeyGCM(ecdsaPrivKeyBuffer, keyMaterial, salt, iv);
-          const ecdhPubJSON = JSON.parse(d.ecdhPair.publicKey);
-          d.ecdhPair.publicKey = await window.crypto.subtle.importKey(
-            "jwk", 
-            ecdsaPubJSON, {
-            name: "ECDSA",
-            namedCurve: "P-384"
-          }, true, ['verify']);
+          if(typeof d.ecdhPair.publicKey === 'string'){
+            d.ecdhPair.publicKey = JSON.parse(d.ecdhPair.publicKey);
+          }
+          if(d.ecdhPair.publicKey.kty){
+            d.ecdhPair.publicKey = await window.crypto.subtle.importKey(
+              "jwk", 
+              d.ecdhPair.publicKey, {
+              name: "ECDH",
+              namedCurve: "P-384"
+            }, true, []);
+          }
           base64ToArrayBuffer(JSON.parse(d.ecdhPair.privateKey).wrapped, async (ecdhPrivKeyBuffer) => {
             d.ecdhPair.privateKey = await unwrapECDHKeyGCM(ecdhPrivKeyBuffer, keyMaterial, salt, iv);
             let enc = new TextEncoder();
@@ -858,6 +862,7 @@
           true,
           ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
         )
+        console.log(ourEKey)
         //UNWRAP OUR PRIVATE KEY 
         base64ToArrayBuffer(JSON.parse(ourKey.privateKey).wrapped, async (ecdhPrivKeyBuffer) => {
           const iv = Uint8Array.from(Object.values(JSON.parse(ourKey.privateKey).iv));
@@ -876,6 +881,7 @@
             true,
             ["deriveKey", "deriveBits"]
           );
+          console.log(privateKey)
 
           //DERIVE THE ENCRYPTION KEY TO ENCRYPT / DECRYPT THE DATA
           const dataEncryptionKey = await crypto.subtle.deriveKey(
@@ -964,9 +970,7 @@
         loaded[encryptedStr] = encryptedStr;
         const encrypted = JSON.parse(encryptedStr.substr(12))
         const keyPathArr = encrypted.keyPath.split('.')
-        console.log(encrypted.data);
         valoria.getUser(encrypted.keyOwner, (user) => {
-          console.log(encrypted.data);
           let thisKeyD = user;
           for(let i=1;i<keyPathArr.length;i++){
             thisKeyD = thisKeyD.get(keyPathArr[i]);
@@ -1299,6 +1303,7 @@
         )
         //UNWRAP OUR PRIVATE KEY
         const ourIv = Uint8Array.from(Object.values(JSON.parse(myKey.privateKey).iv));
+
         base64ToArrayBuffer(JSON.parse(myKey.privateKey).wrapped, async (privAb) => {
           const privateKey = await crypto.subtle.unwrapKey(
             'jwk',
@@ -1313,13 +1318,15 @@
           if(typeof user.ecdhPair.publicKey === 'string'){
             user.ecdhPair.publicKey = JSON.parse(user.ecdhPair.publicKey);
           };
-          user.ecdhPair.publicKey = await crypto.subtle.importKey(
-            'jwk',
-            user.ecdhPair.publicKey,
-            {name: "ECDH", namedCurve: "P-384"},
-            true,
-            []
-          );
+          if(user.ecdhPair.publicKey.kty){
+            user.ecdhPair.publicKey = await crypto.subtle.importKey(
+              'jwk',
+              user.ecdhPair.publicKey,
+              {name: "ECDH", namedCurve: "P-384"},
+              true,
+              []
+            );
+          }
           //DERIVE THEIR ENCRYPTION KEY
           const theirEKey = await crypto.subtle.deriveKey(
             {
