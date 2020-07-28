@@ -460,20 +460,21 @@ function startServer(){
     socket.on("Save User Data", async (body) => {
       //TODO: VERIFY USER SIGNATURE
       let uniquePath = body.userId;
+      console.log(body.path.substr(1).split('.'));
       for (var i=0, pathArr=body.path.substr(1).split('.'), len=pathArr.length; i<len; i++){
         uniquePath += "." + pathArr[i];
-        getDataFromPath(uniquePath, (d, path) => {
-          if(i === len - 1){
+        getDataFromPath(uniquePath, (d, path, index) => {
+          if(index === len - 1){
             d = body.data;
             io.to(path).emit("Get User Data", {data: d, path: path});
             saveDataToPath(path, d)
           }else{
             if(!d || typeof d !== 'object') d = {};
             console.log(pathArr);
-            console.log(i)
-            d[pathArr[i + 1]] = d[pathArr[i + 1]] || {};
-            if(i === len - 2) {
-              d[pathArr[i + 1]] = body.data;
+            console.log(index)
+            d[pathArr[index + 1]] = d[pathArr[index + 1]] || {};
+            if(index === len - 2) {
+              d[pathArr[index + 1]] = body.data;
             }
             io.to(path).emit("Get User Data", {data: d, path: path});
             saveDataToPath(path, d)
