@@ -464,20 +464,19 @@ function startServer(){
       let uniquePath = body.userId;
       for (var i=0, pathArr=body.path.substr(1).split('.'), len=pathArr.length; i<len; i++){
         uniquePath += "." + pathArr[i];
-        getDataFromPath(uniquePath, (d) => {
+        getDataFromPath(uniquePath, (d, path) => {
           if(i === len - 1){
             d = body.data;
-            io.to(uniquePath).emit("Get User Data", {d, path: uniquePath});
-            saveDataToPath(uniquePath, d)
+            io.to(path).emit("Get User Data", {data: d, path: path});
+            saveDataToPath(path, d)
           }else{
             if(!d || typeof d !== 'object') d = {};
             d[pathArr[i + 1]] = d[pathArr[i + 1]] || {};
             if(i === len - 2) {
               d[pathArr[i + 1]] = body.data;
             }
-            console.log(uniquePath)
-            io.to(uniquePath).emit("Get User Data", {data: d, path: uniquePath});
-            saveDataToPath(uniquePath, d)
+            io.to(path).emit("Get User Data", {data: d, path: path});
+            saveDataToPath(path, d)
           }
         })
       };
@@ -490,20 +489,20 @@ function startServer(){
         try {
          d = require(`./data/${path}.json`);
          if(d) {
-          cb(d);
+          cb(d, path);
          }else {
-           cb(null)
+           cb(null, path)
          }
         } catch {
-          cb(null)
+          cb(null, path)
         }
       } else {
         s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${path}.json`}, function(err, d) {
           if(d && d.Body){
             d = JSON.parse(d.Body.toString());
-            cb(d);
+            cb(d, path);
           }else{
-            cb(null)
+            cb(null, path)
           }
         })
       }
