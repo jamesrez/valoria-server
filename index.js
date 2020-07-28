@@ -463,47 +463,47 @@ function startServer(){
       console.log(body.path.substr(1).split('.'));
       for (var i=0, pathArr=body.path.substr(1).split('.'), len=pathArr.length; i<len; i++){
         uniquePath += "." + pathArr[i];
-        getDataFromPath(uniquePath, (d, path, index) => {
-          if(index === len - 1){
+        getDataFromPath({path: uniquePath, index: i}, (d, cbData) => {
+          if(cbData.index === len - 1){
             d = body.data;
-            io.to(path).emit("Get User Data", {data: d, path: path});
-            saveDataToPath(path, d)
+            io.to(cbData.path).emit("Get User Data", {data: d, path: cbData.path});
+            saveDataToPath(cbData.path, d)
           }else{
             if(!d || typeof d !== 'object') d = {};
             console.log(pathArr);
-            console.log(index)
-            d[pathArr[index + 1]] = d[pathArr[index + 1]] || {};
-            if(index === len - 2) {
-              d[pathArr[index + 1]] = body.data;
+            console.log(cbData.index)
+            d[pathArr[cbData.index + 1]] = d[pathArr[cbData.index + 1]] || {};
+            if(cbData.index === len - 2) {
+              d[pathArr[cbData.index + 1]] = body.data;
             }
-            io.to(path).emit("Get User Data", {data: d, path: path});
-            saveDataToPath(path, d)
+            io.to(cbData.path).emit("Get User Data", {data: d, path: cbData.path});
+            saveDataToPath(cbData.path, d)
           }
         })
       };
       
     })
 
-    function getDataFromPath(path, cb){
+    function getDataFromPath(body, cb){
       
       if(!process.env.AWS_ACCESS_KEY_ID){
         try {
-         d = require(`./data/${path}.json`);
+         d = require(`./data/${body.path}.json`);
          if(d) {
-          cb(d, path);
+          cb(d, body.path);
          }else {
-           cb(null, path)
+           cb(null, body)
          }
         } catch {
-          cb(null, path)
+          cb(null, body)
         }
       } else {
-        s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${path}.json`}, function(err, d) {
+        s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${body.path}.json`}, function(err, d) {
           if(d && d.Body){
             d = JSON.parse(d.Body.toString());
-            cb(d, path);
+            cb(d, body);
           }else{
-            cb(null, path)
+            cb(null, body)
           }
         })
       }
@@ -533,7 +533,7 @@ function startServer(){
         if(!user) return;
         const uniquePath = d.userId + d.path;
         socket.join(uniquePath);
-        getDataFromPath(uniquePath, (thisData) => {
+        getDataFromPath({path: uniquePath}, (thisData) => {
           socket.emit("Get User Data", {data: thisData, path: uniquePath});
         });
       })
