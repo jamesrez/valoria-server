@@ -451,8 +451,6 @@ function startServer(){
           if (err) return console.log(err);
         });
       }else {
-        console.log("SAVING");
-        console.log(uniquePath);
         s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${uniquePath}.json`, Body : JSON.stringify(value, null, 2)}, (err, fileData) => {
           if (err) console.error(`Upload Error ${err}`);
         });
@@ -471,6 +469,8 @@ function startServer(){
             saveDataToPath(path, d)
           }else{
             if(!d || typeof d !== 'object') d = {};
+            console.log(pathArr[i]);
+            console.log(pathArr[i + 1])
             d[pathArr[i + 1]] = d[pathArr[i + 1]] || {};
             if(i === len - 2) {
               d[pathArr[i + 1]] = body.data;
