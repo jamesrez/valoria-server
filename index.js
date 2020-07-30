@@ -471,7 +471,7 @@ function startServer(){
           }else{
             if(!d || typeof d !== 'object') d = {};
             console.log(pathArr);
-            console.log(cbData.index)
+            console.log(cbData)
             d[pathArr[cbData.index + 1]] = d[pathArr[cbData.index + 1]] || {};
             if(cbData.index === len - 2) {
               d[pathArr[cbData.index + 1]] = body.data;
@@ -490,7 +490,7 @@ function startServer(){
         try {
          d = require(`./data/${body.path}.json`);
          if(d) {
-          cb(d, body.path);
+          cb(d, body);
          }else {
            cb(null, body)
          }
