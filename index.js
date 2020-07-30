@@ -34,6 +34,8 @@ let data = {
   }
 };
 
+const keysBeingSaved = {};
+
 let iceServers = [{ url: "stun:stun.l.google.com:19302" }];
 
 // //MEDIA SOUP STUFF 
@@ -460,7 +462,6 @@ function startServer(){
     socket.on("Save User Data", async (body) => {
       //TODO: VERIFY USER SIGNATURE
       let uniquePath = body.userId;
-      console.log(body.path.substr(1).split('.'));
       for (var i=0, pathArr=body.path.substr(1).split('.'), len=pathArr.length; i<len; i++){
         uniquePath += "." + pathArr[i];
         getDataFromPath({path: uniquePath, index: i}, (d, cbData) => {
@@ -470,8 +471,6 @@ function startServer(){
             saveDataToPath(cbData.path, d)
           }else{
             if(!d || typeof d !== 'object') d = {};
-            console.log(pathArr);
-            console.log(cbData)
             d[pathArr[cbData.index + 1]] = d[pathArr[cbData.index + 1]] || {};
             if(cbData.index === len - 2) {
               d[pathArr[cbData.index + 1]] = body.data;
@@ -582,18 +581,19 @@ function startServer(){
     })
 
     socket.on('Save Key to Path', async (d) => {
+      const uniquePath = d.userId + d.path;
+      if(!keysBeingSaved[uniquePath]) keysBeingSaved[uniquePath] = {};
+      keysBeingSaved[uniquePath][d.keyUser] = d.key;
       getUserById(d.userId, (user) => {
         if(!user) return;
-        const uniquePath = d.userId + d.path;
-        
         getKeyFromPath(uniquePath, (keys) => {
           if(!keys) keys = {};
-          keys[d.keyUser] = d.key
+          Object.assign(keys, keysBeingSaved[uniquePath]);
+          if(!keys[d.keyUser]) keys[d.keyUser] = d.key;
           if(!keys.path) keys.path = d.path;
           if(!keys.userId) keys.userId = d.userId;
           if(!process.env.AWS_ACCESS_KEY_ID){
-            fs.writeFile(`./data/keys.${uniquePath}.json`, JSON.stringify(keys, null, 2), function (err) {
-              if (err) return console.log(err);
+            fs.writeFile(`./data/keys.${uniquePath}.json`, JSON.stringify(keys, null, 2), () => {
             });
           } else {
             s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `keys.${uniquePath}.json`, Body : JSON.stringify(keys, null, 2)}, (err, fileData) => {
