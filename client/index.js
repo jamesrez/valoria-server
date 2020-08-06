@@ -12,14 +12,14 @@ async function start(){
   ethereum.enable();
   provider = new ethers.providers.Web3Provider(web3.currentProvider);
   signer = await provider.getSigner();
-  const username = sessionStorage.getItem('valoriaUsername');
-  const password = sessionStorage.getItem('valoriaPassword')
-  if(username && password){
-    valoria.register(username, password, (user) => {
-      window.user = user;
-      startChat();
-    });
-  }
+  // const username = sessionStorage.getItem('valoriaUsername');
+  // const password = sessionStorage.getItem('valoriaPassword')
+  // if(username && password){
+  //   valoria.register(username, password, (user) => {
+  //     window.user = user;
+  //     startChat();
+  //   });
+  // }
 }
 
 //   valoria.getUsersByUsername("james", (users) => {
@@ -192,8 +192,6 @@ function loadMessages(msgs){
   $('.chatMsgContainerList')[0].scrollTop = $('.chatMsgContainerList')[0].scrollHeight;
 }
 
-
-
 $('.chatMsgInput').on('keyup', (e) => {
   if(e.keyCode === 13){
     sendMessage($('.chatMsgInput').val())
@@ -214,22 +212,6 @@ async function sendMessage(msg){
     })
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 //RAINBOW TEXT 
 function toSpans(span) {

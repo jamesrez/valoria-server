@@ -1,4 +1,3 @@
-
 const express= require('express');
 const app = express();
 const server = require('http').Server(app);
@@ -18,7 +17,8 @@ app.set('view engine', 'pug');
 app.use(express.json())
 app.use(express.static('client'));
 
-const servers = {};
+const servers = require('./servers.js');
+const sokets = {};
 
 const port = process.env.PORT || 80;
 
@@ -29,9 +29,7 @@ let data = {
   online: {},
   usernames: {},
   dimensions: {},
-  servers: {
-    ['https://valoria-server-0.herokuapp.com/'] : 'https://valoria-server-0.herokuapp.com/'
-  }
+  servers: servers
 };
 
 const keysBeingSaved = {};
@@ -114,9 +112,7 @@ if(!process.env.AWS_ACCESS_KEY_ID){
         "usernames": {},
         "online": {},
         "dimensions": {},
-        "servers": {
-          ['https://valoria-server-0.herokuapp.com/'] : 'https://valoria-server-0.herokuapp.com/'
-        }
+        "servers": servers
       }
       saveData(data, async () => {
         if(process.env.TWILIO_ACCOUNT_SID){
@@ -189,16 +185,14 @@ function startServer(){
   });
 
   if(process.env.AWS_ACCESS_KEY_ID){
-    //Ask the last server
-    if(!data.servers) data.servers = {
-      ['https://valoria-server-0.herokuapp.com/'] : 'https://valoria-server-0.herokuapp.com/'
-    };
-    const server0 = serverIo.connect(Object.keys(data.servers)[Object.keys(data.servers).length - 1]);
-    server0.emit("Get all Servers");
-    server0.on("Get all Servers", (s) => {
+    //Ask a random server to get all the servers. 
+    if(!data.servers) data.servers = servers;
+    const randServer = serverIo.connect(Object.keys(servers)[Math.floor(Math.random() * Object.keys(servers).length)]);
+    randServer.emit("Get all Servers");
+    randServer.on("Get all Servers", (s) => {
       Object.keys(s).forEach((serverUrl) => {
         data.servers[serverUrl] = serverUrl;
-        servers[serverUrl] = serverIo.connect(serverUrl, {reconnection: true});
+        sockets[serverUrl] = serverIo.connect(serverUrl, {reconnection: true});
       })
       saveData(data);
     })
@@ -210,7 +204,7 @@ function startServer(){
       data.servers[url] = url;
       saveData(data);
       Object.keys(servers).forEach((serverUrl) => {
-        servers[serverUrl].emit("New Server", url);
+        sockets[serverUrl].emit("New Server", url);
       })
     }
     res.render('index.pug');
@@ -736,6 +730,22 @@ function startServer(){
     socket.on("Get all Servers", () => {
       socket.emit("Get all Servers", data.servers);
     });
+
+    socket.on("Get Random Servers", (amount) => {
+      const randomServers = [];
+      const serversClone = Object.assign({}, servers);
+      let serversCloneLength = Object.keys(serversClone).length;
+      for(let i=0; i<amount; i++){
+        if(serversCloneLength < 1) break;
+        console.log(Object.keys(serversClone).length);
+        console.log(Math.floor(Math.random() * serversCloneLength))
+        const randServerUrl = Object.keys(serversClone)[Math.floor(Math.random() * serversCloneLength)];
+        randomServers.push(randServerUrl);
+        delete serversClone[randServerUrl];
+        serversCloneLength -= 1;
+      }
+      socket.emit("Get Random Servers", randomServers);
+    })
 
   })
 };

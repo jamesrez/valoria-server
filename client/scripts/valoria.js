@@ -195,12 +195,19 @@
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join(''); // convert bytes to hex string
     return hashHex;
   }
+
+  //Lets try to grow this be like at least 5-10 for launch. Hundreds would be cool. 
+  const initialServersList = [
+    'https://valoria-server-0.herokuapp.com/',
+    'https://valoria-server-1.herokuapp.com/'
+  ]
   
   class Valoria {
     
     constructor(opts){
-      this.server = opts.server;
-      this.socket = io(this.server);
+      this.initialServer = opts.server || initialServersList[Math.floor(Math.random() * initialServersList.length)];
+      this.sockets = {[this.initialServer]: io(this.initialServer)};
+      this.socket = this.sockets[this.initialServer];
       this.dimension = opts.dimension || "valoria";
       this.username;
       this.user;
@@ -219,8 +226,20 @@
       this.localICECandidates = [];
       this.peerConnection;
       this.callId;
+      this.signalServer = null;
+
+      //RETRIEVE ONE RANDOM SERVER AND MAKE IT OUR PRIMARY SERVER
+      this.sockets[this.initialServer].emit('Get Random Servers', 1)
+      this.sockets[this.initialServer].on('Get Random Servers', (servers) => {
+        this.primaryServer = servers[0];
+        this.sockets[this.primaryServer] = io(this.primaryServer)
+        this.setupPrimaryConnections(this.sockets[this.primaryServer]);
+      })
   
-      this.socket.on('Getting Connection', (d) => {
+    }
+
+    async setupPrimaryConnections(socket) {
+      socket.on('Getting Connection', (d) => {
         if(d.initiated){
           this.conns[d.userId] = {
             connected: false,
@@ -239,10 +258,10 @@
             })
             .then((stream) => {
               this.localStream = stream;
-              this.socket.emit("join", d.userId, d.socket, this.user.id);
+              socket.emit("join", d.userId, d.socket, this.user.id);
             })
           }else{
-            this.socket.emit("join", d.userId, d.socket, this.user.id);
+            socket.emit("join", d.userId, d.socket, this.user.id);
           }
         }else if(d.streaming){
           this.onCallIncoming(d);
@@ -254,21 +273,21 @@
             connected: false,
             localICECandidates: []
           }
-          this.socket.emit("join", d.userId, this.user.id);
+          socket.emit("join", d.userId, this.user.id);
         }
       });
   
-      this.socket.on("offer", (userId, offer) => {
+      socket.on("offer", (userId, offer) => {
         this.conns[userId].offer = offer;
-        this.socket.emit("iceServers", userId);
+        socket.emit("iceServers", userId);
       });
-      this.socket.on("answer", (userId, answer) => {
+      socket.on("answer", (userId, answer) => {
         this.onAnswer(userId, answer, this);
       });
-      this.socket.on("ready", (userId) => {
+      socket.on("ready", (userId) => {
         this.socket.emit("iceServers", userId);
       });
-      this.socket.on("iceServers", (userId, servers) => {
+      socket.on("iceServers", (userId, servers) => {
         if(!this.conns[userId].initiated){
           if(!this.conns[userId].peerConnection && this.conns[userId].offer){
             this.onIceServers(userId, servers, this.createAnswer);
@@ -277,101 +296,113 @@
           this.onIceServers(userId, servers, this.createOffer);
         }
       });
-      this.socket.on("newCandidate", (userId, candidate) => {
+      socket.on("newCandidate", (userId, candidate) => {
         this.onCandidate(userId, candidate, this)
       });
 
-      this.socket.on('Get User', (user) => {
+      socket.on('Get User', (user) => {
         if(!this.onUser[user.id]) return;
         this.onUser[user.id](user);
       });
-  
     }
   
     async register(username, password, cb){
       const thisValoria = this;
-      const socket = this.socket;
+      const socket = this.sockets[this.primaryServer];
       const peer = this.peer;
       const dimension = this.dimension;
       const getOnlinePeers = this.getOnlinePeers;
       this.username = username;
       const userId = await digestMessage(username + password);
-      if(username.length > 0 && password.length > 0){
-        const ecdhPair = await window.crypto.subtle.generateKey(
-          {
-            name: "ECDH",
-            namedCurve: "P-384"
-          },
-          true,
-          ["deriveKey", "deriveBits"]
-        );
-        const ecdsaPair = await window.crypto.subtle.generateKey(
-          {
-            name: "ECDSA",
-            namedCurve: "P-384"
-          },
-          true,
-          ["sign", "verify"]
-        );
-        // const encryptionKey = await window.crypto.subtle.generateKey({
-        //   name: "AES-GCM",
-        //   length: 256,
-        // }, true, ["encrypt", "decrypt"]);
-        thisValoria.user = new ValoriaUser({
-          username: username,
-          id: userId,
-          ecdsaPair: ecdsaPair,
-          ecdhPair: ecdhPair,
-          sockets: {[socket.id]: socket},
-          dimension: dimension,
-          valoria: thisValoria
-        });
-        const salt = window.crypto.getRandomValues(new Uint8Array(16));
-        const keyMaterial = await getKeyMaterial(password);
-        const iv = window.crypto.getRandomValues(new Uint8Array(12));
-        wrapCryptoKeyGCM(ecdhPair.privateKey, salt, keyMaterial, iv, async (ecdhPrivWrapped) => {
-          const ecdhPubRaw = await window.crypto.subtle.exportKey("jwk", ecdhPair.publicKey);
-          let ecdhPair2Save = {}
-          ecdhPair2Save.publicKey = JSON.stringify(await window.crypto.subtle.exportKey("jwk", ecdhPair.publicKey));
-          ecdhPair2Save.privateKey = JSON.stringify({wrapped : ecdhPrivWrapped, salt: salt, iv: iv});
-          wrapCryptoKeyGCM(ecdsaPair.privateKey, salt, keyMaterial, iv, async (ecdsaPrivWrapped) => {
-            let ecdsaPair2Save = {};
-            ecdsaPair2Save.publicKey = JSON.stringify(await window.crypto.subtle.exportKey("jwk", ecdsaPair.publicKey));
-            ecdsaPair2Save.privateKey = JSON.stringify({wrapped : ecdsaPrivWrapped, salt: salt, iv: iv});
-            socket.off('Create User');
-            socket.emit('Create User', {
-              userId, username, ecdsaPair: ecdsaPair2Save, ecdhPair : ecdhPair2Save
-            });  
-            socket.on("Create User", async (d) => {
-              if(d.err){
-                this.login(username, password, (user) => {
-                  if(cb && typeof cb === 'function'){
-                    cb(user);
-                  }
-                });
-              }else {
+      if(username.length > 0 && password.length > 0 && userId.length > 0){
+        socket.off('Get User');
+        socket.emit('Get User', userId);
+        socket.on('Get User', async (user) => {
+          console.log(user);
+          if(user){
+            console.log("LETS LOGIN")
+             this.login(username, password, (user) => {
                 if(cb && typeof cb === 'function'){
-                  // thisValoria.createPeerConnection();
-                  thisValoria.getOnlinePeers();
-                  thisValoria.onData();
-                  thisValoria.onKey();
-                  cb(thisValoria.user);
+                  cb(user);
                 }
-              }
-            }); 
-          })
-          // wrapCryptoKeyKW(encryptionKey, salt, keyMaterial, async (wrappedKeyBase64) => {
-          //   const wrapped = JSON.stringify({val : wrappedKeyBase64, salt});
-          // });
-        });
+              });
+          }else{
+            console.log("LETS CREATE THE USER");
+            const ecdhPair = await window.crypto.subtle.generateKey(
+              {
+                name: "ECDH",
+                namedCurve: "P-384"
+              },
+              true,
+              ["deriveKey", "deriveBits"]
+            );
+            const ecdsaPair = await window.crypto.subtle.generateKey(
+              {
+                name: "ECDSA",
+                namedCurve: "P-384"
+              },
+              true,
+              ["sign", "verify"]
+            );
+            // const encryptionKey = await window.crypto.subtle.generateKey({
+            //   name: "AES-GCM",
+            //   length: 256,
+            // }, true, ["encrypt", "decrypt"]);
+            thisValoria.user = new ValoriaUser({
+              username: username,
+              id: userId,
+              ecdsaPair: ecdsaPair,
+              ecdhPair: ecdhPair,
+              sockets: {[socket.id]: socket},
+              dimension: dimension,
+              valoria: thisValoria
+            });
+            const salt = window.crypto.getRandomValues(new Uint8Array(16));
+            const keyMaterial = await getKeyMaterial(password);
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+            wrapCryptoKeyGCM(ecdhPair.privateKey, salt, keyMaterial, iv, async (ecdhPrivWrapped) => {
+              const ecdhPubRaw = await window.crypto.subtle.exportKey("jwk", ecdhPair.publicKey);
+              let ecdhPair2Save = {}
+              ecdhPair2Save.publicKey = JSON.stringify(await window.crypto.subtle.exportKey("jwk", ecdhPair.publicKey));
+              ecdhPair2Save.privateKey = JSON.stringify({wrapped : ecdhPrivWrapped, salt: salt, iv: iv});
+              wrapCryptoKeyGCM(ecdsaPair.privateKey, salt, keyMaterial, iv, async (ecdsaPrivWrapped) => {
+                let ecdsaPair2Save = {};
+                ecdsaPair2Save.publicKey = JSON.stringify(await window.crypto.subtle.exportKey("jwk", ecdsaPair.publicKey));
+                ecdsaPair2Save.privateKey = JSON.stringify({wrapped : ecdsaPrivWrapped, salt: salt, iv: iv});
+                socket.off('Create User');
+                socket.emit('Create User', {
+                  userId, username, ecdsaPair: ecdsaPair2Save, ecdhPair : ecdhPair2Save
+                });  
+                socket.on("Create User", async (d) => {
+                  if(d.err){
+                    console.log("ERROR CREATING USER");
+                    console.log(d.err);
+                  }else {
+                    if(cb && typeof cb === 'function'){
+                      // thisValoria.createPeerConnection();
+                      thisValoria.getOnlinePeers();
+                      thisValoria.onData();
+                      thisValoria.onKey();
+                      cb(thisValoria.user);
+                    }
+                  }
+                }); 
+              })
+              // wrapCryptoKeyKW(encryptionKey, salt, keyMaterial, async (wrappedKeyBase64) => {
+              //   const wrapped = JSON.stringify({val : wrappedKeyBase64, salt});
+              // });
+            });
+          }
+        })
       }
     }
   
     async login(username, password, cb){
-      const socket = this.socket;
+      const socket = this.sockets[this.primaryServer];
       const dimension = this.dimension;
       const thisValoria = this;
       const userId = await digestMessage(username + password);
+      socket.off('Get User');
       socket.emit('Get User', userId);
       socket.on('Get User', async (d) => {
         const salt = Uint8Array.from(Object.values(JSON.parse(d.ecdsaPair.privateKey).salt));
@@ -440,7 +471,7 @@
   
     async getOnlinePeers(cb){
       const dimension = this.dimension;
-      const socket = this.socket;
+      const socket = this.sockets[this.primaryServer];
       const allPeers = this.onlinePeers;
       socket.emit("Get Peers in Dimension", dimension);
       socket.on("Get Peers in Dimension", (peers) => {
@@ -470,7 +501,7 @@
     }
   
     async getUser(d, cb){
-      const socket = this.socket;
+      const socket = this.sockets[this.primaryServer];
       const thisVal = this;
       if(thisVal.users[d] && cb && typeof cb === 'function') {
         cb(thisVal.users[d]);
@@ -495,7 +526,7 @@
     }
 
     async getUsersByUsername(d, cb){
-      const socket = this.socket;
+      const socket = this.sockets[this.primaryServer];
       const thisVal = this;
       socket.off('Get User by Username');
       socket.emit('Get User by Username', d);
@@ -505,32 +536,28 @@
     }
   
     onData(){
-      Object.keys(this.user.sockets).forEach((id) => {
-        this.user.sockets[id].on('Get User Data', (d) => {
-          let vData = this.datas[d.path];
-          if(d.data){
-            vData.saveDataToPath(d.data);
-          }
-          if(vData.onNew && typeof vData.onNew === 'function'){
-            vData.onNew(d.data);
-          }
-        });
+      this.sockets[this.primaryServer].on('Get User Data', (d) => {
+        let vData = this.datas[d.path];
+        if(d.data){
+          vData.saveDataToPath(d.data);
+        }
+        if(vData.onNew && typeof vData.onNew === 'function'){
+          vData.onNew(d.data);
+        }
       });
     }
 
     onKey(){
-      Object.keys(this.user.sockets).forEach((id) => {
-        this.user.sockets[id].on('Get Key from Path', (d) => {
-          let vData = this.datas[d.userId + d.path];
-          if(vData.onKey && typeof vData.onKey === 'function'){
-            vData.onKey(d);
-          }
-        });
+      this.sockets[this.primaryServer].on('Get Key from Path', (d) => {
+        let vData = this.datas[d.userId + d.path];
+        if(vData.onKey && typeof vData.onKey === 'function'){
+          vData.onKey(d);
+        }
       });
     }
 
     onIceServers (userId, turn, callback) {
-      const socket = this.socket;
+      const socket = this.sockets[this.primaryServer];
       const thisVal = this;
       const userSocket = this.conns[userId].socket;
       thisVal.conns[userId].peerConnection = new RTCPeerConnection({
@@ -633,7 +660,7 @@
     }
   
     createOffer(thisVal, userId){
-      const socket = thisVal.socket;
+      const socket = thisVal.sockets[thisVal.primaryServer];
       const peerConnection = thisVal.conns[userId].peerConnection;
       peerConnection.createOffer(
         function (offer) {
@@ -647,7 +674,7 @@
   
     createAnswer(thisVal, userId) {
       const peerConnection = thisVal.conns[userId].peerConnection;
-      const socket = thisVal.socket;
+      const socket = thisVal.sockets[thisVal.primaryServer];
       let rtcOffer = new RTCSessionDescription(JSON.parse(thisVal.conns[userId].offer));
       peerConnection.setRemoteDescription(rtcOffer);
       peerConnection.createAnswer(
@@ -662,7 +689,7 @@
     }
   
     onAnswer(userId, answer, thisVal) {
-      const socket = thisVal.socket;
+      const socket = thisVal.sockets[thisVal.primaryServer];
       const peerConnection = thisVal.conns[userId].peerConnection;
       var rtcAnswer = new RTCSessionDescription(JSON.parse(answer));
       peerConnection.setRemoteDescription(rtcAnswer);
@@ -679,7 +706,7 @@
         }
       }
       const thisVal = this;
-      this.socket.emit('Connect to User', {toUserId: userId, userId: this.user.id, toUsername: this.onlinePeers[userId].username, username: this.user.username, streaming: true});
+      this.sockets[this.primaryServer].emit('Connect to User', {toUserId: userId, userId: this.user.id, toUsername: this.onlinePeers[userId].username, username: this.user.username, streaming: true});
     }
   
     answer(d, cb){
@@ -702,7 +729,7 @@
           connected: false,
           localICECandidates: []
         }
-        this.socket.emit("join", d.userId, d.socket, this.user.id);
+        this.sockets[this.primaryServer].emit("join", d.userId, d.socket, this.user.id);
       })
     }
   
@@ -746,6 +773,7 @@
       this.path = d.path;
       this.value = d.value;
       this.user = d.user;
+      this.servers = {};
       this.onNew;
       this.onKey;
       this.onPeerConnected;
@@ -831,6 +859,14 @@
         uniquePath += "." + pathArr[i];
       }
       localforage.setItem(`user.${this.user.id}${this.path}`, value);
+
+      this.user.valoria.sockets[this.user.valoria.primaryServer].emit("Save User Data", {
+        data: value,
+        path: this.path,
+        userId: this.user.id,
+        username: this.user.username
+      });
+
     }
   
     async set(d, opts={}){
@@ -862,7 +898,6 @@
           true,
           ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
         )
-        console.log(ourEKey)
         //UNWRAP OUR PRIVATE KEY 
         base64ToArrayBuffer(JSON.parse(ourKey.privateKey).wrapped, async (ecdhPrivKeyBuffer) => {
           const iv = Uint8Array.from(Object.values(JSON.parse(ourKey.privateKey).iv));
@@ -897,7 +932,6 @@
             true,
             ["encrypt", "decrypt"]
           );
-          console.log("ENCRYPTING...");
           //ENCRYPT THE DATA
           let encoded;
           if(typeof this.value === 'object'){
@@ -914,49 +948,16 @@
             dataEncryptionKey,
             encoded
           )
-
-          console.log(opts.encrypt.userId);
-          console.log(opts.encrypt.path);
           this.value = "VALENCRYPTED" + JSON.stringify({
             data: ab2str(abEncryptedValue),
             iv: dataIv,
             keyOwner: opts.encrypt.userId,
             keyPath: opts.encrypt.path
           })
-          this.saveDataToPath(this.value);
-          Object.keys(this.user.valoria.user.sockets).forEach((id) => {
-            this.user.valoria.user.sockets[id].emit("Save User Data", {
-              data: this.value,
-              path: this.path,
-              userId: this.user.id,
-              username: this.user.username
-            });
-          });
-
-          //ATTEMPT TO DECRYPT 
-          console.log("ATTEMPTING TO DECRYPT");
-          const decrypted = await crypto.subtle.decrypt(
-            {
-              name: 'AES-GCM',
-              iv: dataIv,
-            }, 
-            dataEncryptionKey,
-            str2ab(ab2str(abEncryptedValue))
-          );
-          console.log(ab2str(decrypted));
-
-
+          this.saveDataToPath(this.value); 
         })
       }else{
         this.saveDataToPath(this.value);
-        Object.keys(this.user.valoria.user.sockets).forEach((id) => {
-          this.user.valoria.user.sockets[id].emit("Save User Data", {
-            data: this.value,
-            path: this.path,
-            userId: this.user.id,
-            username: this.user.username
-          });
-        });
       }
     }
   
@@ -1115,7 +1116,7 @@
               }
               thisVal.conns[thisD.user.id].dataChannel.send(JSON.stringify(data));
             }else{
-              thisVal.user.sockets[id].emit('Connect to User', {
+              thisVal.sockets[thisVal.primaryServer].emit('Connect to User', {
                 toUserId: thisD.user.id,
                 userId: thisVal.user.id,
                 toUsername: thisVal.onlinePeers[thisD.user.id].username,
@@ -1135,7 +1136,7 @@
             }
           }
           //ASK VALORIA SERVER <-- SHOULD ONLY DO THIS IF CANT ESTABLISH P2P CONNECTION
-          thisVal.user.sockets[id].emit("Get User Data", {username: thisD.user.username, userId: thisD.user.id, path: thisD.path});
+          thisVal.sockets[thisVal.primaryServer].emit("Get User Data", {username: thisD.user.username, userId: thisD.user.id, path: thisD.path});
         });
       })
     }
@@ -1143,7 +1144,7 @@
     async getEncryptionKey(cb){
       const thisD = this;
       const thisVal = thisD.user.valoria;
-      const socket = thisVal.socket;
+      const socket = thisVal.sockets[thisVal.primaryServer];
 
       if(thisVal.keys[this.user.id + this.path] && cb && typeof cb === 'function'){
         cb(thisVal.keys[this.user.id + this.path])
@@ -1225,48 +1226,45 @@
             }
           };
     
-          Object.keys(thisD.user.valoria.user.sockets).forEach((id) => {
-  
-            //ATTEMPT TO ASK USER THROUGH PEER TO PEER CONNECTION
-            if(thisD.user.id !== thisVal.user.id){
-              if(thisVal.conns[thisD.user.id] && thisVal.conns[thisD.user.id].dataChannel){
+          //ATTEMPT TO ASK USER THROUGH PEER TO PEER CONNECTION
+          if(thisD.user.id !== thisVal.user.id){
+            if(thisVal.conns[thisD.user.id] && thisVal.conns[thisD.user.id].dataChannel){
+              const data = {
+                type: 'getKey',
+                path: thisD.user.id + thisD.path,
+                userId: thisD.user.id,
+                keyUser: thisVal.user.id
+              }
+              thisVal.conns[thisD.user.id].dataChannel.send(JSON.stringify(data));
+            }else{
+              thisVal.sockets[thisVal.primaryServer].emit('Connect to User', {
+                toUserId: thisD.user.id,
+                userId: thisVal.user.id,
+                toUsername: thisVal.onlinePeers[thisD.user.id].username,
+                username: thisVal.user.username,
+                streaming: false,
+                dataPath: thisD.user.id + thisD.path
+              });
+              thisD.onPeerConnected = (conn) => {
+                if(!conn || !conn.dataChannel) return;
                 const data = {
                   type: 'getKey',
-                  path: thisD.user.id + thisD.path,
+                  path: conn.dataPath,
                   userId: thisD.user.id,
                   keyUser: thisVal.user.id
                 }
-                thisVal.conns[thisD.user.id].dataChannel.send(JSON.stringify(data));
-              }else{
-                thisVal.user.sockets[id].emit('Connect to User', {
-                  toUserId: thisD.user.id,
-                  userId: thisVal.user.id,
-                  toUsername: thisVal.onlinePeers[thisD.user.id].username,
-                  username: thisVal.user.username,
-                  streaming: false,
-                  dataPath: thisD.user.id + thisD.path
-                });
-                thisD.onPeerConnected = (conn) => {
-                  if(!conn || !conn.dataChannel) return;
-                  const data = {
-                    type: 'getKey',
-                    path: conn.dataPath,
-                    userId: thisD.user.id,
-                    keyUser: thisVal.user.id
-                  }
-                  conn.dataChannel.send(JSON.stringify(data));
-                }
+                conn.dataChannel.send(JSON.stringify(data));
               }
             }
-            
-            //ASK VALORIA SERVER <-- SHOULD ONLY DO THIS IF CANT ESTABLISH P2P CONNECTION
-            thisVal.user.sockets[id].emit("Get Key from Path", {
-              userId: thisD.user.id,
-              path: thisD.path,
-              keyUser: thisVal.user.id
-            });
-  
+          }
+          
+          //ASK VALORIA SERVER <-- SHOULD ONLY DO THIS IF CANT ESTABLISH P2P CONNECTION
+          thisVal.sockets[thisVal.primaryServer].emit("Get Key from Path", {
+            userId: thisD.user.id,
+            path: thisD.path,
+            keyUser: thisVal.user.id
           });
+
         })
       }
     }
@@ -1274,7 +1272,7 @@
     async shareEncryptionKey(user){
       const thisD = this;
       const thisVal = thisD.user.valoria;
-      const socket = thisVal.socket;
+      const socket = thisVal.sockets[thisVal.primaryServer];
       if(thisD.user.id !== thisVal.user.id) return;
       thisD.getEncryptionKey(async (key) => {
         if(key[user.id] || !key[thisVal.user.id]) return;
