@@ -1034,8 +1034,7 @@ function startServer(){
         connectedServers[thisUrl] = {};
         if(Object.keys(connectedServers).length < 10){
           Object.keys(connected.to).forEach((nextUrl) => {
-            if(connectedServers[nextUrl] || nextServer) return;
-            nextServer = nextUrl;
+            if(!connectedServers[nextUrl] && !nextServer) nextServer = nextUrl;
           })
         };
         connected.to[url] = {}
