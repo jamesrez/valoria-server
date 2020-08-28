@@ -161,6 +161,7 @@ let ECDSAPair = {
     });
     s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : "servers.json"}, async function(err, savedServers) {
       if(err) console.log(err);
+      if(!savedServers || savedServers.Body) return;
       savedServers= JSON.parse(savedServers.Body.toString());
       Object.assign(servers, savedServers);
       if(process.env.TWILIO_ACCOUNT_SID){
@@ -275,14 +276,12 @@ function startServer(){
         delete sockets[url];
       });
     }
-
     //CONNECT TO 10 SERVERS, FIRST ONE IS RANDOM
     if(Object.keys(connected.to).length === 0){
       console.log("NEED A RANDOM SERVER");
       const randServerUrl = Object.keys(servers)[Math.floor(Math.random() * Object.keys(servers).length)];
       connectToServer(randServerUrl)
     }
-
     if(!servers[thisUrl]){
       servers[thisUrl] = {
         url: thisUrl,
