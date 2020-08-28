@@ -12,6 +12,7 @@ const util = require('util');
 const stun = require('stun');
 const { uuid } = require('uuidv4');
 require('dotenv').config();
+console.log(process.env);
 const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID || "AClol", process.env.TWILIO_AUTH_TOKEN || "lol");
 app.set('views', 'client')
 app.set('view engine', 'pug');
