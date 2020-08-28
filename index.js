@@ -159,7 +159,6 @@ let ECDSAPair = {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
     });
-    console.log("CONNECTED TO s3");
     s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : "servers.json"}, async function(err, savedServers) {
       if(err) return;
       if(!savedServers || savedServers.Body) return;
@@ -247,6 +246,7 @@ function startServer(){
           if (err) return console.log(err);
         });
       }else {
+        console.log("WE GOT TO SAVING THE SERVERS");
         s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : "servers.json", Body : JSON.stringify(servers, null, 2)}, (err, fileData) => {
           if (err) console.error(`Upload Error ${err}`);
         });
