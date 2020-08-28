@@ -260,7 +260,7 @@ function startServer(){
     async function connectToServer(url){
       const pubKeyJwk = await crypto.subtle.exportKey('jwk', ECDSAPair.publicKey)
       sockets[url] = serverIo.connect(url);
-      sockets[url].emit("Connecting to Server", {url: thisUrl, publicKey: pubKeyJwk, connected: connected.to});
+      sockets[url].emit("Connecting to Server", {url: thisUrl, publicKey: pubKeyJwk, connectedServers: connected.to});
       sockets[url].on("Connected to Server", (d) => {
         servers[url] = {};
         connected.to[url] = {
