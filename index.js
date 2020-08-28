@@ -259,6 +259,7 @@ function startServer(){
 
     async function connectToServer(url){
       const pubKeyJwk = await crypto.subtle.exportKey('jwk', ECDSAPair.publicKey)
+      console.log("Connecting to server: " + url);
       sockets[url] = serverIo.connect(url);
       sockets[url].emit("Connecting to Server", {url: thisUrl, publicKey: pubKeyJwk, connectedServers: connected.to});
       sockets[url].on("Connected to Server", (d) => {
@@ -1028,6 +1029,8 @@ function startServer(){
     socket.on("Connecting to Server", (d) => {
       const {url, pubKey, connectedServers, serverSig} = d;
       servers[url] = {};
+      console.log("connecting to server");
+      console.log(url);
       //VERIFY THAT SERVER ONLY HAS LESS THAN 10 OTHER SERVERS CONNECTED TO IT
       let nextServer = null;
       if(Object.keys(connectedServers).length < 10) {
@@ -1038,6 +1041,7 @@ function startServer(){
           })
         };
         connected.to[url] = {}
+        console.log("connected to server");
         sockets[url] = serverIo.connect(url);
         sockets[url].emit("Connected to Server", {url: thisUrl, nextServer});
       } else {
