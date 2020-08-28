@@ -12,7 +12,6 @@ const util = require('util');
 const stun = require('stun');
 const { uuid } = require('uuidv4');
 require('dotenv').config();
-console.log(process.env);
 const twilioClient = require('twilio')(process.env.TWILIO_ACCOUNT_SID || "AClol", process.env.TWILIO_AUTH_TOKEN || "lol");
 app.set('views', 'client')
 app.set('view engine', 'pug');
@@ -160,8 +159,9 @@ let ECDSAPair = {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
     });
+    console.log("CONNECTED TO s3");
     s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : "servers.json"}, async function(err, savedServers) {
-      if(err) console.log(err);
+      if(err) return;
       if(!savedServers || savedServers.Body) return;
       savedServers= JSON.parse(savedServers.Body.toString());
       Object.assign(servers, savedServers);
