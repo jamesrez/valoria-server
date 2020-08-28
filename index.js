@@ -7,6 +7,7 @@ const bodyParser = require('body-parser');
 const { Crypto } = require("@peculiar/webcrypto");
 const os = require( 'os' );
 const crypto = new Crypto();
+const NodeCrypto = require('crypto');
 const util = require('util');
 const stun = require('stun');
 const { uuid } = require('uuidv4');
@@ -18,7 +19,11 @@ app.use(express.json())
 app.use(express.static('client'));
 
 const servers = require('./servers.js');
-const sokets = {};
+const sockets = {};
+const connected = {
+  to: {},
+  from: {}
+};
 
 const port = process.env.PORT || 80;
 
@@ -27,14 +32,19 @@ const AWS = require('aws-sdk');
 let s3 = null;
 let data = {
   online: {},
-  usernames: {},
   dimensions: {},
-  servers: servers
 };
 
 const keysBeingSaved = {};
 
 let iceServers = [{ url: "stun:stun.l.google.com:19302" }];
+
+let thisUrl = '';
+let ECDSAPair = {
+  publicKey: '',
+  privateKey: ''
+};
+
 
 // //MEDIA SOUP STUFF 
 // (async function(){
@@ -83,73 +93,98 @@ let iceServers = [{ url: "stun:stun.l.google.com:19302" }];
 //   });
 // })()
 
-
-if(!process.env.AWS_ACCESS_KEY_ID){
+(async function(){
+   //MUST LOAD THE SERVER KEYPAIR
   try {
-    let d = fs.readFileSync('./data/server.json', 'utf8');
-    if(d) Object.assign(data, JSON.parse(d));
-  } catch {
-    fs.mkdirSync('./data/', {recursive : true});
-    fs.writeFileSync('data/server.json', data, {flag: 'a'});
+    const pubEcdsaJwk = require("./keystorage/pubECDSA-384.json");
+    const prvEcdsaJwk = require('./keystorage/prvECDSA-384.json');
+    const pubEcdsaKey = await crypto.subtle.importKey(
+      'jwk',
+      pubEcdsaJwk,
+      {
+        name: 'ECDSA',
+        namedCurve: 'P-384'
+      },
+      true,
+      ['verify']
+    )
+    const prvEcdsaKey = await crypto.subtle.importKey(
+      'jwk',
+      prvEcdsaJwk,
+      {
+        name: 'ECDSA',
+        namedCurve: 'P-384'
+      },
+      true,
+      ['sign']
+    )
+    ECDSAPair.publicKey = pubEcdsaKey;
+    ECDSAPair.privateKey = prvEcdsaKey;
   }
-  data.online = {};
-  saveData(data, async () => {
+  //MUST CREATE NEW SERVER KEYPAIR
+  catch {
+    const ecdsaPair = await crypto.subtle.generateKey(
+      {
+        name: 'ECDSA',
+        namedCurve: 'P-384'
+      },
+      true,
+      ['sign', 'verify']
+    );
+    ECDSAPair.publicKey = ecdsaPair.publicKey;
+    ECDSAPair.privateKey = ecdsaPair.privateKey;
+    const pubKeyJwk = await crypto.subtle.exportKey('jwk', ecdsaPair.publicKey)
+    const prvKeyJwk = await crypto.subtle.exportKey('jwk', ecdsaPair.privateKey)
+    fs.mkdirSync('./keystorage/', {recursive : true});
+    fs.writeFileSync('keystorage/pubECDSA-384.json', JSON.stringify(pubKeyJwk, null, 2), {flag: 'a'});
+    fs.writeFileSync('keystorage/prvECDSA-384.json', JSON.stringify(prvKeyJwk, null, 2), {flag: 'a'});
+  }
+  if(!process.env.AWS_ACCESS_KEY_ID){
+    try {
+      let savedServers = fs.readFileSync('./data/servers.json', 'utf8');
+      if(savedServers) Object.assign(servers, JSON.parse(savedServers));
+    } catch {
+      fs.mkdirSync('./data/', {recursive : true});
+      fs.writeFileSync('data/servers.json', servers, {flag: 'a'});
+    }
+    data.online = {};
     if(process.env.TWILIO_ACCOUNT_SID){
       const token = await twilioClient.tokens.create();
       iceServers = token.iceServers;
     }
     startServer();
-  });
-} else {
-  AWS.config.update({region: 'us-west-1'});
-  s3 = new AWS.S3({
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-  });
-  s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : "server.json"}, function(err, fileData) {
-    if(err) {
-      data = {
-        "usernames": {},
-        "online": {},
-        "dimensions": {},
-        "servers": servers
-      }
-      saveData(data, async () => {
-        if(process.env.TWILIO_ACCOUNT_SID){
-          const token = await twilioClient.tokens.create();
-          iceServers = token.iceServers;
-        }
-        startServer();
-      })
-    }else{
-      data = JSON.parse(fileData.Body.toString());
-      data.online = {};
-      data.peers = {};
-      saveData(data, async () => {
-        //GET TWILIO STUN/TURN SERVERS
-        if(process.env.TWILIO_ACCOUNT_SID){
-          const token = await twilioClient.tokens.create();
-          iceServers = token.iceServers
-        }
-        startServer();
-      });
-    }
-  });
-}
-
-function saveData(data, cb) {
-  if(!process.env.AWS_ACCESS_KEY_ID){
-    fs.writeFile('./data/server.json', JSON.stringify(data, null, 2), function (err) {
-      if (err) return console.log(err);
-      if(cb && typeof cb == 'function') cb();
+  } else {
+    AWS.config.update({region: 'us-west-1'});
+    s3 = new AWS.S3({
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
     });
-  }else {
-    s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : "server.json", Body : JSON.stringify(data, null, 2)}, (err, fileData) => {
-      if (err) console.error(`Upload Error ${err}`);
-      if(cb && typeof cb == 'function') cb();
+    s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : "servers.json"}, async function(err, savedServers) {
+      if(err) console.log(err);
+      savedServers= JSON.parse(savedServers.Body.toString());
+      Object.assign(servers, savedServers);
+      if(process.env.TWILIO_ACCOUNT_SID){
+        const token = await twilioClient.tokens.create();
+        iceServers = token.iceServers;
+      }
+      startServer();
     });
   }
-}
+}());
+
+// function saveData(data, cb) {
+//   if(!process.env.AWS_ACCESS_KEY_ID){
+//     fs.writeFile('./data/server.json', JSON.stringify(data, null, 2), function (err) {
+//       if (err) return console.log(err);
+//       if(cb && typeof cb == 'function') cb();
+//     });
+//   }else {
+//     s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : "server.json", Body : JSON.stringify(data, null, 2)}, (err, fileData) => {
+//       if (err) console.error(`Upload Error ${err}`);
+//       if(cb && typeof cb == 'function') cb();
+//     });
+//   }
+// }
 
 if (process.env.NODE_ENV === "production") {
 	/*
@@ -178,6 +213,19 @@ function base64ToArrayBuffer(dataUrl, cb) {
   return Uint8Array.from(atob(dataUrl), c => c.charCodeAt(0))
 }
 
+function ab2str(buf) {
+  return String.fromCharCode.apply(null, new Uint16Array(buf));
+}
+
+function str2ab(str) {
+  var buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
+  var bufView = new Uint16Array(buf);
+  for (var i=0, strLen=str.length; i < strLen; i++) {
+    bufView[i] = str.charCodeAt(i);
+  }
+  return buf;
+}
+
 function startServer(){
 
   server.listen(port, () => {
@@ -186,60 +234,190 @@ function startServer(){
 
   if(process.env.AWS_ACCESS_KEY_ID){
     //Ask a random server to get all the servers. 
-    if(!data.servers) data.servers = servers;
     const randServer = serverIo.connect(Object.keys(servers)[Math.floor(Math.random() * Object.keys(servers).length)]);
     randServer.emit("Get all Servers");
     randServer.on("Get all Servers", (s) => {
       Object.keys(s).forEach((serverUrl) => {
-        data.servers[serverUrl] = serverUrl;
-        sockets[serverUrl] = serverIo.connect(serverUrl, {reconnection: true});
+        servers[serverUrl] = serverUrl;
       })
-      saveData(data);
+      if(!process.env.AWS_ACCESS_KEY_ID){
+        fs.writeFile('./data/servers.json', JSON.stringify(servers, null, 2), function (err) {
+          if (err) return console.log(err);
+        });
+      }else {
+        s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : "servers.json", Body : JSON.stringify(servers, null, 2)}, (err, fileData) => {
+          if (err) console.error(`Upload Error ${err}`);
+        });
+      }
     })
   }
 
-  app.get('/', (req, res) => {
-    const url = "https://" + req.headers.host + "/";
-    if(!data.servers[url]){
-      data.servers[url] = url;
-      saveData(data);
-      Object.keys(servers).forEach((serverUrl) => {
-        sockets[serverUrl].emit("New Server", url);
-      })
+  app.get('/', async (req, res) => {
+    thisUrl = "https://" + req.headers.host + "/";
+
+    async function connectToServer(url){
+      const pubKeyJwk = await crypto.subtle.exportKey('jwk', ECDSAPair.publicKey)
+      sockets[url] = serverIo.connect(url);
+      sockets[url].emit("Connecting to Server", {url: thisUrl, publicKey: pubKeyJwk, connected: connected.to});
+      sockets[url].on("Connected to Server", (d) => {
+        servers[url] = {};
+        connected.to[url] = {
+          backup: null
+        };
+        console.log("CONNECTED TO " + url);
+        if(Object.keys(connected.to).length < 10 && d.nextServer && !connected.to[d.nextServer]){
+          connectToServer(d.nextServer);
+        }
+      });
+      sockets[url].on("Failed Connection to Server", () => {
+        sockets[url].close();
+        delete connected.to[url];
+        delete sockets[url];
+      });
+    }
+
+    //CONNECT TO 10 SERVERS, FIRST ONE IS RANDOM
+    if(Object.keys(connected.to).length === 0){
+      console.log("NEED A RANDOM SERVER");
+      const randServerUrl = Object.keys(servers)[Math.floor(Math.random() * Object.keys(servers).length)];
+      connectToServer(randServerUrl)
+    }
+
+    if(!servers[thisUrl]){
+      servers[thisUrl] = {
+        url: thisUrl,
+        publicKey : pubKeyJwk
+      }
+      if(!process.env.AWS_ACCESS_KEY_ID){
+        fs.writeFile('./data/servers.json', JSON.stringify(servers, null, 2), function (err) {
+          if (err) return console.log(err);
+        });
+        fs.writeFile('./data/connected.json', JSON.stringify(connected, null, 2), function (err) {
+          if (err) return console.log(err);
+        });
+      }else {
+        s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : "servers.json", Body : JSON.stringify(servers, null, 2)}, (err, fileData) => {
+          if (err) console.error(`Upload Error ${err}`);
+        });
+        s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : "connected.json", Body : JSON.stringify(connected, null, 2)}, (err, fileData) => {
+          if (err) console.error(`Upload Error ${err}`);
+        });
+      }
     }
     res.render('index.pug');
   });
 
-  
-
   io.on('connection', function (socket) {
 
-    //MAKE SURE EACH ROUTE THAT NEEDS AUTHENTICATION USES VERIFY FROM A SIGNATURE
+    const sign = async (str) => {
+      return new Promise(async (resolve) => {
+        const abStr = str2ab(str);
+        const sig = await crypto.subtle.sign(
+          {
+            name: 'ECDSA',
+            namedCurve: 'P-384'
+          },
+          ECDSAPair.privateKey,
+          abStr
+        )
+        resolve(sig);
+      });
+    }
 
-    socket.on('Create User', (d) => {
-      let user;
-      const dimension = d.dimension || "valoria";
+
+    const setupAuthSession = async (user, socket) => {
+      if(!user || !socket) return;
+      //IMPORT PUBLIC KEY OF USER
+      const publicKey = await crypto.subtle.importKey(
+        "jwk", 
+        JSON.parse(user.ecdsaPair.publicKey), {
+        name: "ECDSA",
+        namedCurve: "P-384"
+      }, true, ['verify']);
+      //GENERATE RANDOM KEYCODE 
+      NodeCrypto.randomBytes(256, (err, buf) => {
+        const authKey = buf.toString('hex');
+        const authData = {
+          key: authKey,
+          status: 'Awaiting Signature'
+        }
+        if(!process.env.AWS_ACCESS_KEY_ID){
+          fs.writeFile(`./data/auth-keys.${user.id}.json`, JSON.stringify(authData, null, 2), function (err) {
+            if (err) return console.log(err);
+            socket.emit("Join with Credentials", {authKey, user})
+          });
+        } else {
+          s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `auth-keys.${d.userId}.json`, Body : JSON.stringify(authData, null, 2)}, (err, fileData) => {
+            if (err) console.error(`Upload Error ${err}`);
+            socket.emit("Join with Credentials", {authKey, user})
+          });
+        }
+      });
+    }
+
+    const getAuthKeyByUserId = async (userId, cb) => {
+      if(!userId || !cb) return
       if(!process.env.AWS_ACCESS_KEY_ID){
         try {
-         user = require(`./data/${d.userId}.json`);
-         if(user) {
-          socket.emit("Create User", {...d, err : "User already Exists"});
-          return;
+         authData = require(`./data/auth-keys.${userId}.json`);
+         if(authData) {
+          cb(authData);
+         }else {
+           return
          }
         } catch {
-          createUser();
+          return
         }
       } else {
-        s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`}, function(err, user) {
-          if(user && user.Body){
-            socket.emit("Create User", {...d, err : "User already Exists"});
-            return;
+        s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `auth-keys.${userId}.json`}, function(err, authData) {
+          if(authData && authData.Body){
+            authData = JSON.parse(authData.Body.toString());
+            cb(authData);
+          }else{
+            return
           }
-          if(err) console.log("S3 Err: ", err);
-          createUser()
         })
       }
-      function createUser(){
+    }
+
+    const getUsersByUsername = async (username, cb) => {
+      if (!process.env.AWS_ACCESS_KEY_ID){
+        try {
+         users = require(`./data/username-${username}.json`);
+         if(users) {
+          cb(users);
+         }
+        } catch {
+          cb(null);
+        }
+      } else {
+        s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `username-${username}.json`}, function(err, users) {
+          if(err) console.log("S3 Err: ", err);
+          if(users && users.Body){
+            users = JSON.parse(users.Body.toString());
+            cb(users)
+          }else {
+            cb(null)
+          }
+        })
+      }
+    }
+
+    socket.on('Join with Credentials', (d) => {
+      let user;
+      const dimension = d.dimension || "valoria";
+      getUserById(d.userId, false, (user, serverSigs) => {
+        if(user){
+          setupAuthSession(user, socket);
+        } else{
+          createUser(serverSigs, (user) => {
+            setupAuthSession(user, socket);
+          })
+        }
+      })
+      function createUser(serverSigs, cb){
+        //GET 10 other servers to save the user 
+        const rServers = getRandomServers(10);
         user = {
           username : d.username,
           id: d.userId,
@@ -248,82 +426,127 @@ function startServer(){
           ecdsaPair: d.ecdsaPair,
           ecdhPair: d.ecdhPair,
           dimension: dimension,
+          servers: rServers
         }
-        if(!data.usernames[d.username]) data.usernames[d.username] = {};
-        data.usernames[d.username][d.userId] = {
-          id: d.userId
-        };
-        if(!data.dimensions[dimension]){
-          data.dimensions[dimension] = { sockets: {} };
-        }
-        data.dimensions[dimension].sockets[socket.id] = {
-          username : d.username,
-          userId : d.userId,
-        };
-        data.online[socket.id] = {
-          username : d.username,
-          userId : d.userId,
-          dimension : dimension
-        };
-        Object.keys(data.dimensions[dimension].sockets).forEach((socketId) => {
-          io.to(socketId).emit("New Peer in Dimension", {
-            username : d.username,
-            userId : d.userId,
-            socket : socket.id,
-          });
+        getUsersByUsername(d.username, (users) => {
+          if(!users) users = {};
+          users[d.username] = d.userId;
+          //SAVE USERS BY USERNAMES
+          if(!process.env.AWS_ACCESS_KEY_ID){
+            fs.writeFile(`./data/username-${d.username}.json`, JSON.stringify(users, null, 2), function (err) {
+              if (err) return console.log(err);
+            });
+            fs.writeFile(`./data/${d.userId}.json`, JSON.stringify(user, null, 2), function (err) {
+              if (err) return console.log(err);
+              cb(user)
+            })
+          } else {
+            s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `username-${d.username}.json`, Body : JSON.stringify(users, null, 2)}, (err, fileData) => {
+              if (err) console.error(`Upload Error ${err}`);
+            });
+            s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`, Body : JSON.stringify(user, null, 2)}, (err, fileData) => {
+              if (err) console.error(`Upload Error ${err}`);
+              cb(user);
+            });
+          }
+          rServers.forEach((url) => {
+            sockets[url] = serverIo.connect(url);
+            sockets[url].emit('Create User with Proof of Nonexistance', user, serverSigs);
+          })
         })
-        saveData(data, () => {
-          socket.emit("Create User", {success : true, ...d});
-        });
-
-        if(!process.env.AWS_ACCESS_KEY_ID){
-          fs.writeFile(`./data/${d.userId}.json`, JSON.stringify(user, null, 2), function (err) {
-            if (err) return console.log(err);
-          });
-        } else {
-          s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`, Body : JSON.stringify(user, null, 2)}, (err, fileData) => {
-            if (err) console.error(`Upload Error ${err}`);
-          });
-        }
       }   
     });
 
-    function getUserById(id, cb){
+    async function getUserById(id, localOnly, cb){
       let user;
       if(!id || !cb || typeof cb !== 'function') return;
       if(!process.env.AWS_ACCESS_KEY_ID){
         try {
-         user = require(`./data/${id}.json`);
+          user = require(`./data/${id}.json`);
          if(user) {
-          cb(user);
+          const serverSigTime = Date.now();
+          const serverSig = await sign(serverSigTime + id);
+          cb(user, {[thisUrl]: {sig: serverSig, time: serverSigTime}});
          }else {
-           return
+           if(localOnly) {
+             const serverSigTime = Data.now();
+             const serverSig = await sign('no-' + serverSigTime + id);
+             cb(null, {[thisUrl]: {sig: serverSig, time: serverSigTime}});
+           } else {
+            askOtherServersForUserById()
+           }
          }
         } catch {
-          return
+          if(localOnly) {
+            const serverSigTime = Data.now();
+            const serverSig = await sign('no-' + serverSigTime + id);
+            cb(null, {[thisUrl]: {sig: serverSig, time: serverSigTime}})
+           } else {
+            askOtherServersForUserById()
+           }
         }
       } else {
-        s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${id}.json`}, function(err, user) {
+        s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${id}.json`}, async function(err, user) {
           if(user && user.Body){
             user = JSON.parse(user.Body.toString());
-            cb(user);
+            const serverSigTime = Date.now();
+            const serverSig = await sign(serverSigTime + id);
+            cb(user, {[thisUrl]: {sig: serverSig, time: serverSigTime}});
           }else{
-            return
+            if(localOnly) {
+              const serverSigTime = Data.now();
+              const serverSig = await sign('no-' + serverSigTime + id);
+              cb(null, {[thisUrl]: {sig: serverSig, time: serverSigTime}})
+             } else {
+              askOtherServersForUserById()
+             }
           }
         })
       }
-    }
 
-    function getUsersByUsername(username, cb){
-      let user;
-      if(!username || !cb || typeof cb !== 'function' || !data.usernames[username]) return;
-      cb(data.usernames[username]);
+      async function askOtherServersForUserById() {
+        //TODO: IMPLEMENT A TIMEOUT FOR SERVERS THAT MIGHT NOT CONNECT
+        const serverCount = Object.keys(servers).length;
+        let noCount = 0;
+        let userFound = false;
+        const thisTime = Date.now()
+        const thisSig = await sign('no-' + thisTime + id);
+        const noSigs = {[thisUrl]: {sig: thisSig, time: thisTime}}
+        Object.keys(servers).forEach((url) => {
+          if(url !== thisUrl){
+            if(!sockets[url]) sockets[url] = serverIo.connect(url);
+            sockets[url].off('Get User');
+            sockets[url].emit('Get User', id, localOnly);
+            sockets[url].on('Get User', (user, serverSigs) => {
+              if(user){
+                console.log("USER FOUND FROM SERVER: " + url);
+                userFound = true;
+                cb(user, serverSigs);
+                return;
+              } else {
+                noCount += 1;
+                Object.assign(noSigs, serverSigs);
+                if(noCount === serverCount) {
+                  cb(null, noSigs);
+                }
+              }
+            })
+          }
+        });
+        //THIS HAS TO BE CHANGED TO TIMEOUT FOR EACH INDIVIDUAL SERVER
+        setTimeout(() => {
+          if(userFound) return;
+          console.log("NO USER FOUND FROM TIMEOUT");
+          cb(null, noSigs);
+        }, 5000);
+      }
+
     }
   
-    socket.on('Get User', (id) => {
-      getUserById(id, (user) => {
+    socket.on('Get User', (id, localOnly) => {
+      getUserById(id, localOnly, (user, serverSigs) => {
         if(user){
-          socket.emit("Get User", user);
+          socket.emit("Get User", user, serverSigs);
         }else{
           socket.emit("Get User", {...d, err : "User Does Not Exist"});
         }
@@ -341,7 +564,7 @@ function startServer(){
     })
 
     socket.on('Login User', async (d) => {
-      getUserById(d.userId, async (user) => {
+      getUserById(d.userId, false, async (user) => {
         if(user) {
           const publicKey = await crypto.subtle.importKey(
             "jwk", 
@@ -349,47 +572,50 @@ function startServer(){
             name: "ECDSA",
             namedCurve: "P-384"
           }, true, ['verify']);
-          d.encoded = Uint8Array.from(Object.values(d.encoded));
-          const isUser = await crypto.subtle.verify({
-            name: "ECDSA",
-            hash: {name: "SHA-384"},
-          }, publicKey, d.signature, d.encoded);
-          if(isUser){
-            const dimension = d.dimension || "valoria";
-            user.sockets[socket.id] = socket.id;
-            user.dimension = dimension;
-            if(!data.dimensions[dimension]){
-              data.dimensions[dimension] = {sockets: {} };
-            }
-            data.dimensions[dimension].sockets[socket.id] = {
-              username : d.username,
-              userId : d.userId,
-            };
-            data.online[socket.id] = {
-              username : d.username,
-              userId : d.userId,
-              dimension : dimension
-            };
-            Object.keys(data.dimensions[dimension].sockets).forEach((socketId) => {
-              io.to(socketId).emit("New Peer in Dimension", {
-                username : d.username,
-                userId : d.userId,
-                socket : socket.id,
-              });
-            })
-            saveData(data, () => {
-              socket.emit("Login User", {success : true, ...d});
-            });
-            if(!process.env.AWS_ACCESS_KEY_ID){
-              fs.writeFile(`./data/${d.userId}.json`, JSON.stringify(user, null, 2), function (err) {
-                if (err) return console.log(err);
-              });
+          getAuthKeyByUserId(d.userId, async (authData) => {
+            if(!authData || !authData.key || authData.status !== "Awaiting Signature") return;
+            const encoded = hexStringToArrayBuffer(authData.key)
+            const isUser = await crypto.subtle.verify({
+              name: "ECDSA",
+              hash: {name: "SHA-384"},
+            }, publicKey, d.signature, encoded);
+            if(isUser){
+              const dimension = d.dimension || "valoria";
+              user.sockets[socket.id] = socket.id;
+              user.primaryServer = thisUrl;
+              user.dimension = dimension;
+              if(!data.dimensions[dimension]){
+                data.dimensions[dimension] = {sockets: {} };
+              }
+              data.dimensions[dimension].sockets[socket.id] = {
+                username : user.username,
+                userId : user.userId,
+              };
+              data.online[socket.id] = {
+                username : user.username,
+                userId : user.userId,
+                dimension : dimension
+              };
+              Object.keys(data.dimensions[dimension].sockets).forEach((socketId) => {
+                io.to(socketId).emit("New Peer in Dimension", {
+                  username : user.username,
+                  userId : user.userId,
+                  socket : socket.id,
+                });
+              })
+              if(!process.env.AWS_ACCESS_KEY_ID){
+                fs.writeFile(`./data/${d.userId}.json`, JSON.stringify(user, null, 2), function (err) {
+                  if (err) return console.log(err);
+                });
+              } else {
+                s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`, Body : JSON.stringify(user, null, 2)}, (err, fileData) => {
+                  if (err) console.error(`Upload Error ${err}`);
+                });
+              }
             } else {
-              s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${d.userId}.json`, Body : JSON.stringify(user, null, 2)}, (err, fileData) => {
-                if (err) console.error(`Upload Error ${err}`);
-              });
+              console.log("DEFINITLEY NOT USER :p")
             }
-          }
+          })
         } else {
           socket.emit("Login User", {...d, err : "User Does Not Exist"});
         }
@@ -399,7 +625,7 @@ function startServer(){
     socket.on('disconnect', () => {
       if(data.online[socket.id]){
         let userId = data.online[socket.id].userId;
-        getUserById(userId, (user) => {
+        getUserById(userId, false, (user) => {
           if(user){
             delete user.sockets[socket.id];
             let dimension = user.dimension;
@@ -420,7 +646,6 @@ function startServer(){
             }
           }
           delete data.online[socket.id];
-          saveData(data);
         })
       }
     });
@@ -438,7 +663,6 @@ function startServer(){
       }else {
         dimension = {sockets: {}};
       }
-      saveData(data);
     })
 
     function saveDataToPath(uniquePath, value){
@@ -522,7 +746,7 @@ function startServer(){
 
     socket.on("Get User Data", async(d) => {
       //TODO: GET PUBKEY AND VERIFY DATA SIGNATURE
-      getUserById(d.userId, (user) => {
+      getUserById(d.userId, false, (user) => {
         if(!user) return;
         const uniquePath = d.userId + d.path;
         socket.join(uniquePath);
@@ -559,7 +783,7 @@ function startServer(){
     }
 
     socket.on("Get Key from Path", async (d) => {
-      getUserById(d.userId, (user) => {
+      getUserById(d.userId, false, (user) => {
         if(!user) {
           socket.emit("Get Key from Path", {err: "No Key Found", key: null, path: d.path, userId: d.userId});
         }
@@ -578,7 +802,7 @@ function startServer(){
       const uniquePath = d.userId + d.path;
       if(!keysBeingSaved[uniquePath]) keysBeingSaved[uniquePath] = {};
       keysBeingSaved[uniquePath][d.keyUser] = d.key;
-      getUserById(d.userId, (user) => {
+      getUserById(d.userId, false, (user) => {
         if(!user) return;
         getKeyFromPath(uniquePath, (keys) => {
           if(!keys) keys = {};
@@ -666,7 +890,7 @@ function startServer(){
 
     //NEW WEBRTC SOCKETS
     socket.on("Connect to User", function (d) {
-      getUserById(d.toUserId, (user) => {
+      getUserById(d.toUserId, false, (user) => {
         if(!user) return;
         let sockets = user.sockets;
         Object.keys(sockets).forEach((socketId) => {
@@ -718,33 +942,110 @@ function startServer(){
       io.to(socketId).emit("answer", userId, answer);
     });
 
-    socket.on('New Server', (url) => {
-      if(!data.servers[url]){
-        console.log("New Server at " + url);
-        data.servers[url] = url;
-        saveData(data);
-        servers[url] = serverIo.connect(url);
+    //OTHER SERVERS
+    socket.on('New Server', (d) => {
+      if(!servers[d.url]){
+        console.log("New Server at " + d.url);
+        servers[d.url] = {
+          url: d.url,
+          key: d.publicKey
+        };
+        if(!process.env.AWS_ACCESS_KEY_ID){
+          fs.writeFile('./data/servers.json', JSON.stringify(servers, null, 2), function (err) {
+            if (err) return console.log(err);
+          });
+        }else {
+          s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : "servers.json", Body : JSON.stringify(servers, null, 2)}, (err, fileData) => {
+            if (err) console.error(`Upload Error ${err}`);
+          });
+        }
+        sockets[url] = serverIo.connect(url);
       }
+      let serversLength = Object.keys(d.servers).length;
+      const randServers = [];
+      for(let i = 0; i < 10; i++) {
+        if(serversLength < 1) break;
+        const randServerUrl = Object.keys(d.servers)[Math.floor(Math.random() * serversLength)];
+        delete d.servers[randServerUrl];
+        serversLength -= 1;
+        sockets[randServerUrl] = serverIo.connect(randServerUrl);
+        randomServers.push(randServerUrl);
+      }
+      randServers.forEach((server) => {
+        sockets[server].emit("New Server", {url: d.url, publicKey: d.key, servers})
+      })
     })
 
     socket.on("Get all Servers", () => {
-      socket.emit("Get all Servers", data.servers);
+      socket.emit("Get all Servers", servers);
     });
 
-    socket.on("Get Random Servers", (amount) => {
+    const getRandomServers = (amount) => {
       const randomServers = [];
       const serversClone = Object.assign({}, servers);
       let serversCloneLength = Object.keys(serversClone).length;
       for(let i=0; i<amount; i++){
         if(serversCloneLength < 1) break;
-        console.log(Object.keys(serversClone).length);
-        console.log(Math.floor(Math.random() * serversCloneLength))
         const randServerUrl = Object.keys(serversClone)[Math.floor(Math.random() * serversCloneLength)];
         randomServers.push(randServerUrl);
         delete serversClone[randServerUrl];
         serversCloneLength -= 1;
       }
-      socket.emit("Get Random Servers", randomServers);
+      return randomServers
+    }
+
+    socket.on("Get Random Servers", (amount) => {
+      let rServers = getRandomServers(10);
+      socket.emit("Get Random Servers", rServers);
+    })
+
+    socket.on('Create User with Proof of Nonexistance', (user, serverSigs) => {
+
+      getUsersByUsername(user.username, (users) => {
+        if(!users) users = {};
+        users[user.username] = user.id;
+        //SAVE USERS BY USERNAMES
+        if(!process.env.AWS_ACCESS_KEY_ID){
+          fs.writeFile(`./data/username-${user.username}.json`, JSON.stringify(users, null, 2), function (err) {
+            if (err) return console.log(err);
+          });
+          fs.writeFile(`./data/${user.id}.json`, JSON.stringify(user, null, 2), function (err) {
+            if (err) return console.log(err);
+            cb(user)
+          })
+        } else {
+          s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `username-${user.username}.json`, Body : JSON.stringify(users, null, 2)}, (err, fileData) => {
+            if (err) console.error(`Upload Error ${err}`);
+          });
+          s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${user.id}.json`, Body : JSON.stringify(user, null, 2)}, (err, fileData) => {
+            if (err) console.error(`Upload Error ${err}`);
+            cb(user);
+          });
+        }
+      })
+    })
+
+    socket.on("Connecting to Server", (d) => {
+      const {url, pubKey, connectedServers, serverSig} = d;
+      servers[url] = {};
+      //VERIFY THAT SERVER ONLY HAS LESS THAN 10 OTHER SERVERS CONNECTED TO IT
+      let nextServer = null;
+      if(Object.keys(connectedServers).length < 10) {
+        connectedServers[thisUrl] = {};
+        if(Object.keys(connectedServers).length < 10){
+          Object.keys(connected.to).forEach((nextUrl) => {
+            if(connectedServers[nextUrl] || nextServer) return;
+            nextServer = nextUrl;
+          })
+        };
+        connected.to[url] = {}
+        sockets[url] = serverIo.connect(url);
+        sockets[url].emit("Connected to Server", {url: thisUrl, nextServer});
+      } else {
+        sockets[url].emit("Failed Connection to Server");
+        sockets[url].close();
+        delete sockets[url];
+      }
     })
 
   })
@@ -822,4 +1123,27 @@ function startServer(){
 //   };
 // }
 
+function hexStringToArrayBuffer(hexString) {
+  // remove the leading 0x
+  hexString = hexString.replace(/^0x/, '');
+  
+  // ensure even number of characters
+  if (hexString.length % 2 != 0) return;
+  
+  // check for some non-hex characters
+  var bad = hexString.match(/[G-Z\s]/i);
+  if (bad) return;
+  
+  // split the string into pairs of octets
+  var pairs = hexString.match(/[\dA-F]{2}/gi);
+  
+  // convert the octets to integers
+  var integers = pairs.map(function(s) {
+      return parseInt(s, 16);
+  });
+  
+  var array = new Uint8Array(integers);
+  
+  return array.buffer;
+}
 

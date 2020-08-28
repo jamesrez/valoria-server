@@ -3,8 +3,7 @@ let signer;
 let currentChat = {};
 
 const valoria = new Valoria({
-  server: '/',
-  peerHost: 'https://valoria-peer-server-0.herokuapp.com/'
+  server: '/'
 })
 
 async function start(){

@@ -53,6 +53,36 @@
     }
     return buf;
   }
+
+  function hexStringToArrayBuffer(hexString) {
+    // remove the leading 0x
+    hexString = hexString.replace(/^0x/, '');
+    
+    // ensure even number of characters
+    if (hexString.length % 2 != 0) {
+        console.log('WARNING: expecting an even number of characters in the hexString');
+    }
+    
+    // check for some non-hex characters
+    var bad = hexString.match(/[G-Z\s]/i);
+    if (bad) {
+        console.log('WARNING: found non-hex characters', bad);    
+    }
+    
+    // split the string into pairs of octets
+    var pairs = hexString.match(/[\dA-F]{2}/gi);
+    
+    // convert the octets to integers
+    var integers = pairs.map(function(s) {
+        return parseInt(s, 16);
+    });
+    
+    var array = new Uint8Array(integers);
+    console.log(array);
+    
+    return array.buffer;
+}
+
   
   function getKeyMaterial(password) {
     const enc = new TextEncoder();
@@ -228,13 +258,17 @@
       this.callId;
       this.signalServer = null;
 
-      //RETRIEVE ONE RANDOM SERVER AND MAKE IT OUR PRIMARY SERVER
-      this.sockets[this.initialServer].emit('Get Random Servers', 1)
-      this.sockets[this.initialServer].on('Get Random Servers', (servers) => {
-        this.primaryServer = servers[0];
-        this.sockets[this.primaryServer] = io(this.primaryServer)
-        this.setupPrimaryConnections(this.sockets[this.primaryServer]);
-      })
+      if(opts.server) {
+        this.primaryServer = opts.server;
+      } else {
+        //RETRIEVE ONE RANDOM SERVER AND MAKE IT OUR PRIMARY SERVER
+        this.sockets[this.initialServer].emit('Get Random Servers', 1)
+        this.sockets[this.initialServer].on('Get Random Servers', (servers) => {
+          this.primaryServer = servers[0];
+          this.sockets[this.primaryServer] = io(this.primaryServer)
+          this.setupPrimaryConnections(this.sockets[this.primaryServer]);
+        })
+      }
   
     }
 
@@ -315,157 +349,124 @@
       this.username = username;
       const userId = await digestMessage(username + password);
       if(username.length > 0 && password.length > 0 && userId.length > 0){
-        socket.off('Get User');
-        socket.emit('Get User', userId);
-        socket.on('Get User', async (user) => {
-          console.log(user);
-          if(user){
-            console.log("LETS LOGIN")
-             this.login(username, password, (user) => {
-                if(cb && typeof cb === 'function'){
-                  cb(user);
-                }
-              });
-          }else{
-            console.log("LETS CREATE THE USER");
-            const ecdhPair = await window.crypto.subtle.generateKey(
-              {
-                name: "ECDH",
-                namedCurve: "P-384"
-              },
-              true,
-              ["deriveKey", "deriveBits"]
-            );
-            const ecdsaPair = await window.crypto.subtle.generateKey(
-              {
-                name: "ECDSA",
-                namedCurve: "P-384"
-              },
-              true,
-              ["sign", "verify"]
-            );
-            // const encryptionKey = await window.crypto.subtle.generateKey({
-            //   name: "AES-GCM",
-            //   length: 256,
-            // }, true, ["encrypt", "decrypt"]);
-            thisValoria.user = new ValoriaUser({
-              username: username,
-              id: userId,
-              ecdsaPair: ecdsaPair,
-              ecdhPair: ecdhPair,
-              sockets: {[socket.id]: socket},
-              dimension: dimension,
-              valoria: thisValoria
-            });
-            const salt = window.crypto.getRandomValues(new Uint8Array(16));
-            const keyMaterial = await getKeyMaterial(password);
-            const iv = window.crypto.getRandomValues(new Uint8Array(12));
-            wrapCryptoKeyGCM(ecdhPair.privateKey, salt, keyMaterial, iv, async (ecdhPrivWrapped) => {
-              const ecdhPubRaw = await window.crypto.subtle.exportKey("jwk", ecdhPair.publicKey);
-              let ecdhPair2Save = {}
-              ecdhPair2Save.publicKey = JSON.stringify(await window.crypto.subtle.exportKey("jwk", ecdhPair.publicKey));
-              ecdhPair2Save.privateKey = JSON.stringify({wrapped : ecdhPrivWrapped, salt: salt, iv: iv});
-              wrapCryptoKeyGCM(ecdsaPair.privateKey, salt, keyMaterial, iv, async (ecdsaPrivWrapped) => {
-                let ecdsaPair2Save = {};
-                ecdsaPair2Save.publicKey = JSON.stringify(await window.crypto.subtle.exportKey("jwk", ecdsaPair.publicKey));
-                ecdsaPair2Save.privateKey = JSON.stringify({wrapped : ecdsaPrivWrapped, salt: salt, iv: iv});
-                socket.off('Create User');
-                socket.emit('Create User', {
-                  userId, username, ecdsaPair: ecdsaPair2Save, ecdhPair : ecdhPair2Save
-                });  
-                socket.on("Create User", async (d) => {
-                  if(d.err){
-                    console.log("ERROR CREATING USER");
-                    console.log(d.err);
-                  }else {
-                    if(cb && typeof cb === 'function'){
-                      // thisValoria.createPeerConnection();
-                      thisValoria.getOnlinePeers();
-                      thisValoria.onData();
-                      thisValoria.onKey();
-                      cb(thisValoria.user);
-                    }
-                  }
-                }); 
-              })
-              // wrapCryptoKeyKW(encryptionKey, salt, keyMaterial, async (wrappedKeyBase64) => {
-              //   const wrapped = JSON.stringify({val : wrappedKeyBase64, salt});
-              // });
-            });
-          }
-        })
+        
+        const ecdhPair = await window.crypto.subtle.generateKey(
+          {
+            name: "ECDH",
+            namedCurve: "P-384"
+          },
+          true,
+          ["deriveKey", "deriveBits"]
+        );
+        const ecdsaPair = await window.crypto.subtle.generateKey(
+          {
+            name: "ECDSA",
+            namedCurve: "P-384"
+          },
+          true,
+          ["sign", "verify"]
+        );
+        // const encryptionKey = await window.crypto.subtle.generateKey({
+        //   name: "AES-GCM",
+        //   length: 256,
+        // }, true, ["encrypt", "decrypt"]);
+        thisValoria.user = new ValoriaUser({
+          username: username,
+          id: userId,
+          ecdsaPair: ecdsaPair,
+          ecdhPair: ecdhPair,
+          sockets: {[socket.id]: socket},
+          dimension: dimension,
+          valoria: thisValoria
+        });
+        const salt = window.crypto.getRandomValues(new Uint8Array(16));
+        const keyMaterial = await getKeyMaterial(password);
+        const iv = window.crypto.getRandomValues(new Uint8Array(12));
+        wrapCryptoKeyGCM(ecdhPair.privateKey, salt, keyMaterial, iv, async (ecdhPrivWrapped) => {
+          const ecdhPubRaw = await window.crypto.subtle.exportKey("jwk", ecdhPair.publicKey);
+          let ecdhPair2Save = {}
+          ecdhPair2Save.publicKey = JSON.stringify(await window.crypto.subtle.exportKey("jwk", ecdhPair.publicKey));
+          ecdhPair2Save.privateKey = JSON.stringify({wrapped : ecdhPrivWrapped, salt: salt, iv: iv});
+          wrapCryptoKeyGCM(ecdsaPair.privateKey, salt, keyMaterial, iv, async (ecdsaPrivWrapped) => {
+            let ecdsaPair2Save = {};
+            ecdsaPair2Save.publicKey = JSON.stringify(await window.crypto.subtle.exportKey("jwk", ecdsaPair.publicKey));
+            ecdsaPair2Save.privateKey = JSON.stringify({wrapped : ecdsaPrivWrapped, salt: salt, iv: iv});
+            socket.off('Join with Credentials');
+            socket.emit('Join with Credentials', {userId, username, ecdsaPair: ecdsaPair2Save, ecdhPair : ecdhPair2Save});
+            socket.on('Join with Credentials', async (d) => {
+              if(d.err) console.log(d.err);
+              if(!d.user) return;
+              if(d.authKey) {
+                console.log("GOT AUTH KEY");
+                console.log(d.authKey);
+                this.login(d.user, password, d.authKey)
+              }
+            });  
+          })
+
+        });
       }
+
     }
   
-    async login(username, password, cb){
+    async login(user, password, authKey, cb){
+      //SIGN AUTH CODE AND SEND TO SERVER TO LOGIN
       const socket = this.sockets[this.primaryServer];
       const dimension = this.dimension;
       const thisValoria = this;
-      const userId = await digestMessage(username + password);
-      socket.off('Get User');
-      socket.emit('Get User', userId);
-      socket.on('Get User', async (d) => {
-        const salt = Uint8Array.from(Object.values(JSON.parse(d.ecdsaPair.privateKey).salt));
-        const iv = Uint8Array.from(Object.values(JSON.parse(d.ecdsaPair.privateKey).iv));
-        const keyMaterial = await getKeyMaterial(password);
-        const ecdsaPubJSON = JSON.parse(d.ecdsaPair.publicKey);
-        d.ecdsaPair.publicKey = await window.crypto.subtle.importKey(
-          "jwk", 
-          ecdsaPubJSON, {
-          name: "ECDSA",
-          namedCurve: "P-384"
-        }, true, ['verify']);
-        base64ToArrayBuffer(JSON.parse(d.ecdsaPair.privateKey).wrapped, async (ecdsaPrivKeyBuffer) => {
-          d.ecdsaPair.privateKey = await unwrapECDSAKeyGCM(ecdsaPrivKeyBuffer, keyMaterial, salt, iv);
-          if(typeof d.ecdhPair.publicKey === 'string'){
-            d.ecdhPair.publicKey = JSON.parse(d.ecdhPair.publicKey);
-          }
-          if(d.ecdhPair.publicKey.kty){
-            d.ecdhPair.publicKey = await window.crypto.subtle.importKey(
-              "jwk", 
-              d.ecdhPair.publicKey, {
-              name: "ECDH",
-              namedCurve: "P-384"
-            }, true, []);
-          }
-          base64ToArrayBuffer(JSON.parse(d.ecdhPair.privateKey).wrapped, async (ecdhPrivKeyBuffer) => {
-            d.ecdhPair.privateKey = await unwrapECDHKeyGCM(ecdhPrivKeyBuffer, keyMaterial, salt, iv);
-            let enc = new TextEncoder();
-            let encoded = enc.encode("Glory to Valoria");
-            const signature = await window.crypto.subtle.sign({
-              name: "ECDSA",
-              hash: {name: "SHA-384"},
-            }, d.ecdsaPair.privateKey, encoded);
-            thisValoria.user = new ValoriaUser({
-              username: username,
-              id: userId,
-              ecdsaPair: d.ecdsaPair,
-              ecdhPair: d.ecdhPair,
-              sockets: {[socket.id] : socket},
-              dimension: dimension,
-              valoria: thisValoria
-            });
-            socket.emit("Login User", {userId, username, signature, encoded});
-            socket.on("Login User", async (d) => {
-              if(d.err){
-                console.log("COULD NOT AUTHENTICATE USER");
-              }else {
-                if(cb && typeof cb === 'function'){
-                  thisValoria.getOnlinePeers();
-                  thisValoria.onData();
-                  thisValoria.onKey();
-                  cb(thisValoria.user);
-                }
+      const salt = Uint8Array.from(Object.values(JSON.parse(user.ecdsaPair.privateKey).salt));
+      const iv = Uint8Array.from(Object.values(JSON.parse(user.ecdsaPair.privateKey).iv));
+      const keyMaterial = await getKeyMaterial(password);
+      const ecdsaPubJSON = JSON.parse(user.ecdsaPair.publicKey);
+      user.ecdsaPair.publicKey = await window.crypto.subtle.importKey(
+        "jwk", 
+        ecdsaPubJSON, {
+        name: "ECDSA",
+        namedCurve: "P-384"
+      }, true, ['verify']);
+      base64ToArrayBuffer(JSON.parse(user.ecdsaPair.privateKey).wrapped, async (ecdsaPrivKeyBuffer) => {
+        user.ecdsaPair.privateKey = await unwrapECDSAKeyGCM(ecdsaPrivKeyBuffer, keyMaterial, salt, iv);
+        if(typeof user.ecdhPair.publicKey === 'string'){
+          user.ecdhPair.publicKey = JSON.parse(user.ecdhPair.publicKey);
+        }
+        if(user.ecdhPair.publicKey.kty){
+          user.ecdhPair.publicKey = await window.crypto.subtle.importKey(
+            "jwk", 
+            user.ecdhPair.publicKey, {
+            name: "ECDH",
+            namedCurve: "P-384"
+          }, true, []);
+        }
+        base64ToArrayBuffer(JSON.parse(user.ecdhPair.privateKey).wrapped, async (ecdhPrivKeyBuffer) => {
+          user.ecdhPair.privateKey = await unwrapECDHKeyGCM(ecdhPrivKeyBuffer, keyMaterial, salt, iv);
+          let encoded = hexStringToArrayBuffer(authKey);
+          const signature = await window.crypto.subtle.sign({
+            name: "ECDSA",
+            hash: {name: "SHA-384"},
+          }, user.ecdsaPair.privateKey, encoded);
+          thisValoria.user = new ValoriaUser({
+            username: user.username,
+            id: user.id,
+            ecdsaPair: user.ecdsaPair,
+            ecdhPair: user.ecdhPair,
+            sockets: {[socket.id] : socket},
+            dimension: dimension,
+            valoria: thisValoria
+          });
+          socket.emit("Login User", {userId: user.id, signature});
+          socket.on("Login User", async (d) => {
+            if(d.err){
+              console.log("COULD NOT AUTHENTICATE USER");
+            }else {
+              if(cb && typeof cb === 'function'){
+                thisValoria.getOnlinePeers();
+                thisValoria.onData();
+                thisValoria.onKey();
+                cb(thisValoria.user);
               }
-            });
-          })
-          
-          // AES-GCM KEY UNWRAP
-          // base64ToArrayBuffer(JSON.parse(d.eKey).val, async (eKeyBuffer) => {
-          //   d.eKey = await unwrapSecretKeyKW(eKeyBuffer, keyMaterial, salt);
-          // });
-  
-        });
+            }
+          });
+        })
       });
     }
   
