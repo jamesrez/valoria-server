@@ -160,13 +160,13 @@ let ECDSAPair = {
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
     });
     s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : "servers.json"}, async function(err, savedServers) {
-      if(err) return;
-      if(!savedServers || savedServers.Body) return;
-      savedServers= JSON.parse(savedServers.Body.toString());
-      Object.assign(servers, savedServers);
-      if(process.env.TWILIO_ACCOUNT_SID){
-        const token = await twilioClient.tokens.create();
-        iceServers = token.iceServers;
+      if(!err && savedServers && savedServers.Body ) {
+        savedServers= JSON.parse(savedServers.Body.toString());
+        Object.assign(servers, savedServers);
+        if(process.env.TWILIO_ACCOUNT_SID){
+          const token = await twilioClient.tokens.create();
+          iceServers = token.iceServers;
+        }
       }
       startServer();
     });
