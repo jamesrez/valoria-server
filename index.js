@@ -279,9 +279,11 @@ function startServer(){
       });
     }
     //CONNECT TO 10 SERVERS, FIRST ONE IS RANDOM
-    if(Object.keys(connected.to).length === 0){
+    if(Object.keys(connected.to).length < 10){
       console.log("NEED A RANDOM SERVER");
-      const randServerUrl = Object.keys(servers)[Math.floor(Math.random() * Object.keys(servers).length)];
+      const serversClone = Object.assign({}, servers);
+      delete serversClone[thisUrl];
+      const randServerUrl = Object.keys(serversClone)[Math.floor(Math.random() * Object.keys(serversClone).length)];
       connectToServer(randServerUrl)
     }
     console.log("SERVER IS CURRENTLY CONNECTED TO");
