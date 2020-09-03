@@ -284,6 +284,9 @@ function startServer(){
       const randServerUrl = Object.keys(servers)[Math.floor(Math.random() * Object.keys(servers).length)];
       connectToServer(randServerUrl)
     }
+    console.log("SERVER IS CURRENTLY CONNECTED TO");
+    console.log(connected.to)
+
     if(!servers[thisUrl]){
       servers[thisUrl] = {
         url: thisUrl,
@@ -1042,7 +1045,7 @@ function startServer(){
         };
         connected.to[url] = {}
         console.log("connected to server");
-        sockets[url] = serverIo.connect(url);
+        // sockets[url] = serverIo.connect(url);
         sockets[url].emit("Connected to Server", {url: thisUrl, nextServer});
       } else {
         sockets[url].emit("Failed Connection to Server");
