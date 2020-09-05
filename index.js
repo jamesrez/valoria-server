@@ -353,7 +353,7 @@ function startServer(){
             socket.emit("Join with Credentials", {authKey, user})
           });
         } else {
-          s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `auth-keys.${d.userId}.json`, Body : JSON.stringify(authData, null, 2)}, (err, fileData) => {
+          s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `auth-keys.${user.id}.json`, Body : JSON.stringify(authData, null, 2)}, (err, fileData) => {
             if (err) console.error(`Upload Error ${err}`);
             socket.emit("Join with Credentials", {authKey, user})
           });
