@@ -321,10 +321,10 @@ function startServer(){
         const sig = await crypto.subtle.sign(
           {
             name: 'ECDSA',
-            namedCurve: 'P-384'
+            namedCurve: 'SHA-384'
           },
           ECDSAPair.privateKey,
-          abStr
+          abStr,
         )
         resolve(sig);
       });
