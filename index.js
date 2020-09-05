@@ -1032,7 +1032,7 @@ function startServer(){
 
     socket.on("Connecting to Server", (d) => {
       const {url, pubKey, connectedServers, serverSig} = d;
-      sockets[url] = {};
+      servers[url] = {};
       console.log("connecting to server");
       console.log(url);
       //VERIFY THAT SERVER ONLY HAS LESS THAN 10 OTHER SERVERS CONNECTED TO IT
@@ -1045,6 +1045,7 @@ function startServer(){
           })
         };
         connected.to[url] = {}
+        sockets[url] = serverIo.connect(url);
         console.log("connected to server");
         // sockets[url] = serverIo.connect(url);
         sockets[url].emit("Connected to Server", {url: thisUrl, nextServer});
