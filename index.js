@@ -1032,7 +1032,7 @@ function startServer(){
 
     socket.on("Connecting to Server", (d) => {
       const {url, pubKey, connectedServers, serverSig} = d;
-      servers[url] = {};
+      sockets[url] = {};
       console.log("connecting to server");
       console.log(url);
       //VERIFY THAT SERVER ONLY HAS LESS THAN 10 OTHER SERVERS CONNECTED TO IT
