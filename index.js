@@ -551,9 +551,9 @@ function startServer(){
     socket.on('Get User', (id, localOnly) => {
       getUserById(id, localOnly, (user, serverSigs) => {
         if(user){
-          socket.emit("Get User", user, serverSigs);
+          socket.emit("Get User", {user, serverSigs});
         }else{
-          socket.emit("Get User", {...d, err : "User Does Not Exist"});
+          socket.emit("Get User", {id, err : "User Does Not Exist"});
         }
       })
     })

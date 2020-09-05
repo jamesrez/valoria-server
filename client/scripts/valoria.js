@@ -334,9 +334,13 @@
         this.onCandidate(userId, candidate, this)
       });
 
-      socket.on('Get User', (user) => {
-        if(!this.onUser[user.id]) return;
-        this.onUser[user.id](user);
+      socket.on('Get User', (d) => {
+        if(d.err || !d.user || !d.user.id) {
+          console.log(d.err);
+          return;
+        }
+        if(!this.onUser[d.user.id]) return;
+        this.onUser[d.user.id](user);
       });
     }
   
