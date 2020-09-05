@@ -343,7 +343,6 @@
     async register(username, password, cb){
       const thisValoria = this;
       const socket = this.sockets[this.primaryServer];
-      const peer = this.peer;
       const dimension = this.dimension;
       const getOnlinePeers = this.getOnlinePeers;
       this.username = username;
@@ -366,10 +365,6 @@
           true,
           ["sign", "verify"]
         );
-        // const encryptionKey = await window.crypto.subtle.generateKey({
-        //   name: "AES-GCM",
-        //   length: 256,
-        // }, true, ["encrypt", "decrypt"]);
         thisValoria.user = new ValoriaUser({
           username: username,
           id: userId,

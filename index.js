@@ -423,7 +423,6 @@ function startServer(){
       })
       function createUser(serverSigs, cb){
         //GET 10 other servers to save the user 
-        const rServers = getRandomServers(10);
         user = {
           username : d.username,
           id: d.userId,
@@ -432,7 +431,7 @@ function startServer(){
           ecdsaPair: d.ecdsaPair,
           ecdhPair: d.ecdhPair,
           dimension: dimension,
-          servers: rServers
+          servers: connected.to
         }
         getUsersByUsername(d.username, (users) => {
           if(!users) users = {};
@@ -455,8 +454,8 @@ function startServer(){
               cb(user);
             });
           }
-          rServers.forEach((url) => {
-            sockets[url] = serverIo.connect(url);
+          connected.to.forEach((url) => {
+            if(!sockets[url]) sockets[url] = serverIo.connect(url);
             sockets[url].emit('Create User with Proof of Nonexistance', user, serverSigs);
           })
         })
@@ -512,13 +511,13 @@ function startServer(){
 
       async function askOtherServersForUserById() {
         //TODO: IMPLEMENT A TIMEOUT FOR SERVERS THAT MIGHT NOT CONNECT
-        const serverCount = Object.keys(servers).length;
+        const serverCount = Object.keys(connected.to).length;
         let noCount = 0;
         let userFound = false;
         const thisTime = Date.now()
         const thisSig = await sign('no-' + thisTime + id);
         const noSigs = {[thisUrl]: {sig: thisSig, time: thisTime}}
-        Object.keys(servers).forEach((url) => {
+        Object.keys(connected.to).forEach((url) => {
           if(url !== thisUrl){
             if(!sockets[url]) sockets[url] = serverIo.connect(url);
             sockets[url].off('Get User');
