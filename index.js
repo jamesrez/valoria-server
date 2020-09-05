@@ -454,7 +454,7 @@ function startServer(){
               cb(user);
             });
           }
-          connected.to.forEach((url) => {
+          Object.keys(connected.to).forEach((url) => {
             if(!sockets[url]) sockets[url] = serverIo.connect(url);
             sockets[url].emit('Create User with Proof of Nonexistance', user, serverSigs);
           })
