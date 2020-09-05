@@ -321,7 +321,7 @@ function startServer(){
         const sig = await crypto.subtle.sign(
           {
             name: 'ECDSA',
-            namedCurve: 'SHA-384'
+            hash: 'SHA-384'
           },
           ECDSAPair.privateKey,
           abStr,
