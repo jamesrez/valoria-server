@@ -413,6 +413,7 @@ function startServer(){
       let user;
       const dimension = d.dimension || "valoria";
       console.log("FINDING USER:", d.userId);
+      console.log("WHY IS THIS NEXT FUNCTION BEING CALLED SO MUCH")
       getUserById(d.userId, false, (user, serverSigs) => {
         console.log(user);
         console.log(serverSigs)
@@ -528,7 +529,7 @@ function startServer(){
             console.log("ASKING ", url);
             if(!sockets[url]) sockets[url] = serverIo.connect(url);
             sockets[url].off('Get User');
-            sockets[url].emit('Get User', id, localOnly);
+            sockets[url].emit('Get User', id, true);
             sockets[url].on('Get User', (user, serverSigs) => {
               if(userFound) return;
               if(user){
