@@ -523,6 +523,7 @@ function startServer(){
             sockets[url].off('Get User');
             sockets[url].emit('Get User', id, localOnly);
             sockets[url].on('Get User', (user, serverSigs) => {
+              if(userFound) return;
               if(user){
                 console.log("USER FOUND FROM SERVER: " + url);
                 userFound = true;
@@ -538,12 +539,6 @@ function startServer(){
             })
           }
         });
-        //THIS HAS TO BE CHANGED TO TIMEOUT FOR EACH INDIVIDUAL SERVER
-        setTimeout(() => {
-          if(userFound) return;
-          console.log("NO USER FOUND FROM TIMEOUT");
-          cb(null, noSigs);
-        }, 5000);
       }
 
     }
