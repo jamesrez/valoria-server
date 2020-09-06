@@ -494,6 +494,7 @@ function startServer(){
            }
         }
       } else {
+        console.log("QUERYING s3");
         s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${id}.json`}, async function(err, user) {
           if(user && user.Body){
             user = JSON.parse(user.Body.toString());
