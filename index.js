@@ -505,7 +505,7 @@ function startServer(){
           }else{
             console.log("Could not find user on this server")
             if(localOnly) {
-              const serverSigTime = Data.now();
+              const serverSigTime = Date.now();
               const serverSig = await sign('no-' + serverSigTime + id);
               cb(null, {[thisUrl]: {sig: serverSig, time: serverSigTime}})
              } else {
