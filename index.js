@@ -501,6 +501,7 @@ function startServer(){
             const serverSig = await sign(serverSigTime + id);
             cb(user, {[thisUrl]: {sig: serverSig, time: serverSigTime}});
           }else{
+            console.log("Could not find user on this server")
             if(localOnly) {
               const serverSigTime = Data.now();
               const serverSig = await sign('no-' + serverSigTime + id);
@@ -514,6 +515,7 @@ function startServer(){
 
       async function askOtherServersForUserById() {
         //TODO: IMPLEMENT A TIMEOUT FOR SERVERS THAT MIGHT NOT CONNECT
+        console.log("LETS ASK OTHER SERVERS");
         const serverCount = Object.keys(connected.to).length;
         let noCount = 0;
         let userFound = false;
@@ -522,6 +524,7 @@ function startServer(){
         const noSigs = {[thisUrl]: {sig: thisSig, time: thisTime}}
         Object.keys(connected.to).forEach((url) => {
           if(url !== thisUrl){
+            console.log("ASKING ", url);
             if(!sockets[url]) sockets[url] = serverIo.connect(url);
             sockets[url].off('Get User');
             sockets[url].emit('Get User', id, localOnly);
@@ -533,6 +536,7 @@ function startServer(){
                 cb(user, serverSigs);
                 return;
               } else {
+                console.log("USER NOT FOUND FROM SERVER");
                 noCount += 1;
                 Object.assign(noSigs, serverSigs);
                 if(noCount === serverCount) {
