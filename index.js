@@ -412,7 +412,10 @@ function startServer(){
     socket.on('Join with Credentials', (d) => {
       let user;
       const dimension = d.dimension || "valoria";
+      console.log("FINDING USER:", d.userId);
       getUserById(d.userId, false, (user, serverSigs) => {
+        console.log(user);
+        console.log(serverSigs)
         if(user){
           setupAuthSession(user, socket);
         } else{
