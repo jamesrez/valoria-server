@@ -530,17 +530,17 @@ function startServer(){
             if(!sockets[url]) sockets[url] = serverIo.connect(url);
             sockets[url].off('Get User');
             sockets[url].emit('Get User', id, true);
-            sockets[url].on('Get User', (user, serverSigs) => {
+            sockets[url].on('Get User', (d) => {
               if(userFound) return;
-              if(user){
+              if(d.user){
                 console.log("USER FOUND FROM SERVER: " + url);
                 userFound = true;
-                cb(user, serverSigs);
+                cb(d.user, d.serverSigs);
                 return;
               } else {
                 console.log("USER NOT FOUND FROM SERVER");
                 noCount += 1;
-                Object.assign(noSigs, serverSigs);
+                Object.assign(noSigs, d.serverSigs);
                 if(noCount === serverCount) {
                   cb(null, noSigs);
                 }
@@ -557,7 +557,7 @@ function startServer(){
         if(user){
           socket.emit("Get User", {user, serverSigs});
         }else{
-          socket.emit("Get User", {id, err : "User Does Not Exist"});
+          socket.emit("Get User", {id, err : "User Does Not Exist", serverSigs});
         }
       })
     })
