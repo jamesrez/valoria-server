@@ -398,7 +398,7 @@
               if(d.authKey) {
                 console.log("GOT AUTH KEY");
                 console.log(d.authKey);
-                this.login(d.user, password, d.authKey)
+                this.login(d.user, password, d.authKey, cb)
               }
             });  
           })
