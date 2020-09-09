@@ -624,6 +624,7 @@ function startServer(){
                 userId : user.userId,
                 dimension : dimension
               };
+              socket.emit("Login User");
               Object.keys(data.dimensions[dimension].sockets).forEach((socketId) => {
                 io.to(socketId).emit("New Peer in Dimension", {
                   username : user.username,
