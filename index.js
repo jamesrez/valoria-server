@@ -259,7 +259,6 @@ function startServer(){
 
     async function connectToServer(url){
       const pubKeyJwk = await crypto.subtle.exportKey('jwk', ECDSAPair.publicKey)
-      console.log("Connecting to server: " + url);
       sockets[url] = serverIo.connect(url);
       sockets[url].emit("Connecting to Server", {url: thisUrl, publicKey: pubKeyJwk, connectedServers: connected.to});
       sockets[url].on("Connected to Server", (d) => {
@@ -267,7 +266,6 @@ function startServer(){
         connected.to[url] = {
           backup: null
         };
-        console.log("CONNECTED TO " + url);
         if(Object.keys(connected.to).length < 10 && d.nextServer && !connected.to[d.nextServer]){
           connectToServer(d.nextServer);
         }
@@ -278,7 +276,6 @@ function startServer(){
         delete sockets[url];
       });
     }
-    //CONNECT TO 10 SERVERS, FIRST ONE IS RANDOM
     if(Object.keys(connected.to).length < 10){
       console.log("NEED A RANDOM SERVER");
       const serversClone = Object.assign({}, servers);
@@ -330,6 +327,23 @@ function startServer(){
       });
     }
 
+    const verify = async (sig, msg, pubKey) => {
+      return new Promise(async (resolve) => {
+        const sigAb = str2ab(sig);
+        const msgAb = str2ab(msg);
+        const isValid = await crypto.subtle.verify(
+          {
+            name: 'ECDSA',
+            hash: 'SHA-384'
+          },
+          pubKey,
+          sigAb,
+          msgAb
+        )
+        resolve(isValid);
+      });
+    }
+
 
     const setupAuthSession = async (user, socket) => {
       if(!user || !socket) return;
@@ -341,11 +355,13 @@ function startServer(){
         namedCurve: "P-384"
       }, true, ['verify']);
       //GENERATE RANDOM KEYCODE 
-      NodeCrypto.randomBytes(256, (err, buf) => {
+      NodeCrypto.randomBytes(256, async (err, buf) => {
         const authKey = buf.toString('hex');
+        const serverKeySig = await sign(authKey);
         const authData = {
           key: authKey,
-          status: 'Awaiting Signature'
+          status: 'Awaiting Signature',
+          serverSig: serverKeySig
         }
         if(!process.env.AWS_ACCESS_KEY_ID){
           fs.writeFile(`./data/auth-keys.${user.id}.json`, JSON.stringify(authData, null, 2), function (err) {
@@ -583,11 +599,14 @@ function startServer(){
           }, true, ['verify']);
           getAuthKeyByUserId(d.userId, async (authData) => {
             if(!authData || !authData.key || authData.status !== "Awaiting Signature") return;
+            console.log("AUTH KEY INFO")
+            console.log(authData);
             const encoded = hexStringToArrayBuffer(authData.key)
             const isUser = await crypto.subtle.verify({
               name: "ECDSA",
               hash: {name: "SHA-384"},
             }, publicKey, d.signature, encoded);
+            console.log(isUser)
             if(isUser){
               const dimension = d.dimension || "valoria";
               user.sockets[socket.id] = socket.id;
