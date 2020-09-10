@@ -677,10 +677,12 @@ function startServer(){
         let count = 0;
         Object.keys(connected.to).forEach((url) => {
           sockets[url].off("Get Peers in Dimension");
+          console.log("ASKING " + url);
           sockets[url].emit("Get Peers in Dimension", dimId, true);
           sockets[url].on("Get Peers in Dimension", (serverOnline) => {
             Object.assign(online, serverOnline);
             count += 1;
+            console.log(count);
             if(count === connectedAmount){
               console.log(online)
               socket.emit("Get Peers in Dimension", online);
