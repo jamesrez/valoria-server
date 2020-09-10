@@ -667,7 +667,7 @@ function startServer(){
 
     socket.on("Get Peers in Dimension", (dimId, localOnly) => {
       if(!dimId) dimId = 'valoria';
-      if!data.dimensions[dimId]) data.dimensions[dimId] = {sockets: {}};
+      if(!data.dimensions[dimId]) data.dimensions[dimId] = {sockets: {}};
       const dimension = data.dimensions[dimId];
       const online = {};
       Object.assign(online, dimension.sockets)
