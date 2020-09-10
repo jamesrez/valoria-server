@@ -112,6 +112,7 @@ async function loadOnlineUsers(){
 
 async function connectToPeer(peer){
   valoria.getUser(peer.userId, (u) => {
+    console.log(u);
     window.thisPeer = u;
     delete currentChat.channel;
     currentChat.userId = u.id;
