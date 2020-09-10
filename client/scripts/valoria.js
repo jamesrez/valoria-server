@@ -499,14 +499,16 @@
       });
     }
   
-    async getUser(d, cb){
+    async getUser(userId, cb){
       const socket = this.sockets[this.primaryServer];
       const thisVal = this;
-      if(thisVal.users[d] && cb && typeof cb === 'function') {
-        cb(thisVal.users[d]);
+      if(thisVal.users[userId] && cb && typeof cb === 'function') {
+        cb(thisVal.users[userid]);
       }else{
-        socket.emit('Get User', d);
-        thisVal.onUser[d] = (user) => {
+        socket.emit('Get User', userId);
+        thisVal.onUser[userId] = (user) => {
+          console.log("GOT USER");
+          console.log(user);
           thisVal.users[user.id] = new ValoriaUser({
             username: user.username,
             id: user.id,
