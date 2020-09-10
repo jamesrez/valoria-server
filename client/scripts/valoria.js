@@ -333,6 +333,8 @@
         this.onCandidate(userId, candidate, this)
       });
 
+      console.log("SEttingup");
+
       socket.on('Get User', (d) => {
         console.log("GOTAUSER");
         console.log(d);
@@ -343,6 +345,7 @@
         if(!this.onUser[d.user.id]) return;
         this.onUser[d.user.id](user);
       });
+
     }
   
     async register(username, password, cb){
