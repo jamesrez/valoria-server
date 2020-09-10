@@ -671,7 +671,7 @@ function startServer(){
       const dimension = data.dimensions[dimId];
       const online = {};
       Object.assign(online, dimension.sockets)
-
+      console.log("Whos in the dimension")
       if(!localOnly){
         let connectedAmount = Object.keys(connected.to).length;
         let count = 0;
@@ -682,11 +682,13 @@ function startServer(){
             Object.assign(online, serverOnline);
             count += 1;
             if(count === connectedAmount){
+              console.log(online)
               socket.emit("Get Peers in Dimension", online);
             }
           })
         })
       }else{
+        console.log(online)
         socket.emit("Get Peers in Dimension", online);
       }
 
