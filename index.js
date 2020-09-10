@@ -1044,7 +1044,6 @@ function startServer(){
           });
           fs.writeFile(`./data/${user.id}.json`, JSON.stringify(user, null, 2), function (err) {
             if (err) return console.log(err);
-            cb(user)
           })
         } else {
           s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `username-${user.username}.json`, Body : JSON.stringify(users, null, 2)}, (err, fileData) => {
@@ -1052,7 +1051,6 @@ function startServer(){
           });
           s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${user.id}.json`, Body : JSON.stringify(user, null, 2)}, (err, fileData) => {
             if (err) console.error(`Upload Error ${err}`);
-            cb(user);
           });
         }
       })
