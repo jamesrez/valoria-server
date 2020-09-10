@@ -475,6 +475,7 @@
       socket.emit("Get Peers in Dimension", dimension);
       socket.on("Get Peers in Dimension", (peers) => {
         if(!peers || typeof peers !== 'object') return;
+        console.log(peers);
         Object.keys(peers).forEach((socketId) => {
           allPeers[peers[socketId].userId] = peers[socketId];
         })
