@@ -78,7 +78,6 @@
     });
     
     var array = new Uint8Array(integers);
-    console.log(array);
     
     return array.buffer;
 }
@@ -458,13 +457,9 @@
               console.log("COULD NOT AUTHENTICATE USER");
             }else {
               if(cb && typeof cb === 'function'){
-                console.log("GOTTA CB")
                 thisValoria.getOnlinePeers();
-                console.log(1)
                 thisValoria.onData();
-                console.log(2);
                 thisValoria.onKey();
-                console.log("MADE IT TO CB")
                 cb(thisValoria.user);
               }
             }

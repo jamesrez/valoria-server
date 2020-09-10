@@ -428,11 +428,7 @@ function startServer(){
     socket.on('Join with Credentials', (d) => {
       let user;
       const dimension = d.dimension || "valoria";
-      console.log("FINDING USER:", d.userId);
-      console.log("WHY IS THIS NEXT FUNCTION BEING CALLED SO MUCH")
       getUserById(d.userId, false, (user, serverSigs) => {
-        console.log(user);
-        console.log(serverSigs)
         if(user){
           setupAuthSession(user, socket);
         } else{
@@ -511,7 +507,6 @@ function startServer(){
            }
         }
       } else {
-        console.log("QUERYING s3");
         s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${id}.json`}, async function(err, user) {
           if(user && user.Body){
             user = JSON.parse(user.Body.toString());
@@ -519,7 +514,6 @@ function startServer(){
             const serverSig = await sign(serverSigTime + id);
             cb(user, {[thisUrl]: {sig: serverSig, time: serverSigTime}});
           }else{
-            console.log("Could not find user on this server")
             if(localOnly) {
               const serverSigTime = Date.now();
               const serverSig = await sign('no-' + serverSigTime + id);
@@ -533,7 +527,6 @@ function startServer(){
 
       async function askOtherServersForUserById() {
         //TODO: IMPLEMENT A TIMEOUT FOR SERVERS THAT MIGHT NOT CONNECT
-        console.log("LETS ASK OTHER SERVERS");
         const serverCount = Object.keys(connected.to).length;
         let noCount = 0;
         let userFound = false;
@@ -542,19 +535,16 @@ function startServer(){
         const noSigs = {[thisUrl]: {sig: thisSig, time: thisTime}}
         Object.keys(connected.to).forEach((url) => {
           if(url !== thisUrl){
-            console.log("ASKING ", url);
             if(!sockets[url]) sockets[url] = serverIo.connect(url);
             sockets[url].off('Get User');
             sockets[url].emit('Get User', id, true);
             sockets[url].on('Get User', (d) => {
               if(userFound) return;
               if(d.user){
-                console.log("USER FOUND FROM SERVER: " + url);
                 userFound = true;
                 cb(d.user, d.serverSigs);
                 return;
               } else {
-                console.log("USER NOT FOUND FROM SERVER");
                 noCount += 1;
                 Object.assign(noSigs, d.serverSigs);
                 if(noCount === serverCount) {
@@ -599,14 +589,11 @@ function startServer(){
           }, true, ['verify']);
           getAuthKeyByUserId(d.userId, async (authData) => {
             if(!authData || !authData.key || authData.status !== "Awaiting Signature") return;
-            console.log("AUTH KEY INFO")
-            console.log(authData);
             const encoded = hexStringToArrayBuffer(authData.key)
             const isUser = await crypto.subtle.verify({
               name: "ECDSA",
               hash: {name: "SHA-384"},
             }, publicKey, d.signature, encoded);
-            console.log(isUser)
             if(isUser){
               const dimension = d.dimension || "valoria";
               user.sockets[socket.id] = socket.id;
@@ -642,7 +629,6 @@ function startServer(){
                 });
               }
             } else {
-              console.log("DEFINITLEY NOT USER :p")
             }
           })
         } else {
@@ -679,19 +665,31 @@ function startServer(){
       }
     });
 
-    socket.on("Get Peers in Dimension", (dimId) => {
+    socket.on("Get Peers in Dimension", (dimId, localOnly) => {
       if(!dimId) dimId = 'valoria';
+      if!data.dimensions[dimId]) data.dimensions[dimId] = {sockets: {}};
       const dimension = data.dimensions[dimId];
-      if(dimension){
-        Object.keys(dimension.sockets).forEach((socketId) => {
-          if(!data.online[socketId]){
-            delete dimension.sockets[socketId]
-          }
+      const online = {};
+      Object.assign(online, dimension.sockets)
+
+      if(!localOnly){
+        let connectedAmount = Object.keys(connected.to).length;
+        let count = 0;
+        Object.keys(connected.to).forEach((url) => {
+          sockets[url].off("Get Peers in Dimension");
+          sockets[url].emit("Get Peers in Dimension", dimId, true);
+          sockets[url].on("Get Peers in Dimension", (serverOnline) => {
+            Object.assign(online, serverOnline);
+            count += 1;
+            if(count === connectedAmount){
+              socket.emit("Get Peers in Dimension", online);
+            }
+          })
         })
-        socket.emit("Get Peers in Dimension", dimension.sockets);
-      }else {
-        dimension = {sockets: {}};
+      }else{
+        socket.emit("Get Peers in Dimension", online);
       }
+
     })
 
     function saveDataToPath(uniquePath, value){
