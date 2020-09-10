@@ -675,6 +675,7 @@ function startServer(){
       if(!localOnly){
         let connectedAmount = Object.keys(connected.to).length;
         let count = 0;
+        console.log(connected.to);
         Object.keys(connected.to).forEach((url) => {
           sockets[url].off("Get Peers in Dimension");
           console.log("ASKING " + url);
