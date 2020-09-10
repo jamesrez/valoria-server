@@ -272,6 +272,7 @@ function startServer(){
       });
       sockets[url].on("Failed Connection to Server", () => {
         sockets[url].close();
+        console.log("Dropping ", url);
         delete connected.to[url];
         delete sockets[url];
       });
