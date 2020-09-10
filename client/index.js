@@ -111,6 +111,7 @@ async function loadOnlineUsers(){
 }
 
 async function connectToPeer(peer){
+  console.log(peer);
   valoria.getUser(peer.id, (u) => {
     console.log(u);
     window.thisPeer = u;
