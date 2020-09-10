@@ -501,7 +501,6 @@
     }
   
     async getUser(userId, cb){
-      console.log("lets get user", userId);
       const socket = this.sockets[this.primaryServer];
       const thisVal = this;
       if(thisVal.users[userId] && cb && typeof cb === 'function') {
