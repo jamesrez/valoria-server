@@ -511,7 +511,6 @@ function startServer(){
         s3.getObject({Bucket : process.env.AWS_S3_BUCKET, Key : `${id}.json`}, async function(err, user) {
           if(user && user.Body){
             user = JSON.parse(user.Body.toString());
-            console.log("FOUND USER", user);
             const serverSigTime = Date.now();
             const serverSig = await sign(serverSigTime + id);
             cb(user, {[thisUrl]: {sig: serverSig, time: serverSigTime}});
@@ -563,6 +562,8 @@ function startServer(){
     socket.on('Get User', (id, localOnly) => {
       getUserById(id, localOnly, (user, serverSigs) => {
         if(user){
+          console.log("EMITTING BACK USER");
+          console.log(user);
           socket.emit("Get User", {user, serverSigs});
         }else{
           socket.emit("Get User", {id, err : "User Does Not Exist", serverSigs});
