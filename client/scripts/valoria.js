@@ -334,12 +334,12 @@
       });
 
       socket.on('Get User', (d) => {
+        console.log("GOTAUSER");
+        console.log(d);
         if(d.err || !d.user || !d.user.id) {
           console.log(d.err);
           return;
         }
-        console.log("GOTAUSER");
-        console.log(d);
         if(!this.onUser[d.user.id]) return;
         this.onUser[d.user.id](user);
       });
