@@ -259,6 +259,8 @@
 
       if(opts.server) {
         this.primaryServer = opts.server;
+        this.sockets[this.primaryServer] = io(this.primaryServer)
+        this.setupPrimaryConnections(this.sockets[this.primaryServer]);
       } else {
         //RETRIEVE ONE RANDOM SERVER AND MAKE IT OUR PRIMARY SERVER
         this.sockets[this.initialServer].emit('Get Random Servers', 1)
@@ -332,8 +334,6 @@
       socket.on("newCandidate", (userId, candidate) => {
         this.onCandidate(userId, candidate, this)
       });
-
-      console.log("SEttingup");
 
       socket.on('Get User', (d) => {
         console.log("GOTAUSER");
