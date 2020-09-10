@@ -605,18 +605,18 @@ function startServer(){
               }
               data.dimensions[dimension].sockets[socket.id] = {
                 username : user.username,
-                userId : user.userId,
+                userId : user.id,
               };
               data.online[socket.id] = {
                 username : user.username,
-                userId : user.userId,
+                userId : user.id,
                 dimension : dimension
               };
               socket.emit("Login User", {status: "Success"});
               Object.keys(data.dimensions[dimension].sockets).forEach((socketId) => {
                 io.to(socketId).emit("New Peer in Dimension", {
                   username : user.username,
-                  userId : user.userId,
+                  userId : user.id,
                   socket : socket.id,
                 });
               })
