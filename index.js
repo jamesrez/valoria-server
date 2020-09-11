@@ -649,6 +649,9 @@ function startServer(){
     })
 
     socket.on("New Peer in Dimension", (d) => {
+      console.log("NEW PEER IN DIMENSION:", d.dimension);
+      console.log(data.dimensions[d.dimension]);
+      if(!data.dimensions[d.dimension]) data.dimensions[d.dimension] = {sockets: {}};
       Object.keys(data.dimensions[d.dimension].sockets).forEach((socketId) => {
         io.to(socketId).emit("New Peer in Dimension", {
           username : d.username,
