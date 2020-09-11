@@ -509,7 +509,7 @@
       const socket = this.sockets[this.primaryServer];
       const thisVal = this;
       if(thisVal.users[userId] && cb && typeof cb === 'function') {
-        cb(thisVal.users[userid]);
+        cb(thisVal.users[userId]);
       }else{
         socket.emit('Get User', userId);
         thisVal.onUser[userId] = (user) => {
