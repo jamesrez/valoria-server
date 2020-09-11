@@ -618,7 +618,7 @@ function startServer(){
                 sockets[url].emit("New Peer in Dimension", {
                   username : user.username,
                   userId : user.id,
-                  socket : socket.id,,
+                  socket : socket.id,
                   dimension: dimension
                 })
               })
