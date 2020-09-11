@@ -613,11 +613,21 @@ function startServer(){
                 dimension : dimension
               };
               socket.emit("Login User", {status: "Success"});
+
+              Object.keys(connected.to).forEach((url) => {
+                sockets[url].emit("New Peer in Dimension", {
+                  username : user.username,
+                  userId : user.id,
+                  socket : socket.id,,
+                  dimension: dimension
+                })
+              })
               Object.keys(data.dimensions[dimension].sockets).forEach((socketId) => {
                 io.to(socketId).emit("New Peer in Dimension", {
                   username : user.username,
                   userId : user.id,
                   socket : socket.id,
+                  dimension: dimension
                 });
               })
               if(!process.env.AWS_ACCESS_KEY_ID){
@@ -635,6 +645,17 @@ function startServer(){
         } else {
           socket.emit("Login User", {...d, err : "User Does Not Exist"});
         }
+      })
+    })
+
+    socket.on("New Peer in Dimension", (d) => {
+      Object.keys(data.dimensions[d.dimension].sockets).forEach((socketId) => {
+        io.to(socketId).emit("New Peer in Dimension", {
+          username : d.username,
+          userId : d.userId,
+          socket : d.socket,
+          dimension: d.dimension
+        });
       })
     })
 
