@@ -649,8 +649,6 @@ function startServer(){
     })
 
     socket.on("New Peer in Dimension", (d) => {
-      console.log("NEW PEER IN DIMENSION:", d.dimension);
-      console.log(data.dimensions[d.dimension]);
       if(!data.dimensions[d.dimension]) data.dimensions[d.dimension] = {sockets: {}};
       Object.keys(data.dimensions[d.dimension].sockets).forEach((socketId) => {
         io.to(socketId).emit("New Peer in Dimension", {
@@ -674,6 +672,12 @@ function startServer(){
             }
             Object.keys(data.dimensions[dimension].sockets).forEach((socketId) => {
               io.to(socketId).emit("Peer Has Left Dimension", userId);
+            });
+            Object.keys(connected.to).forEach((url) => {
+              sockets[url].emit("Peer Has Left Dimension", {
+                dimension: dimension,
+                userId: userId
+              })
             })
             if(!process.env.AWS_ACCESS_KEY_ID){
               fs.writeFile(`./data/${userId}.json`, JSON.stringify(user, null, 2), function (err) {
@@ -720,6 +724,13 @@ function startServer(){
         socket.emit("Get Peers in Dimension", online);
       }
 
+    })
+
+    socket.on("Peer Has Left Dimension", (d) => {
+      if(!data.dimensions[d.dimension]) data.dimension[d.dimension] = {sockets: {}};
+      Object.keys(data.dimensions[d.dimension].sockets).forEach((socketId) => {
+        io.to(socketId).emit("Peer Has Left Dimension", d.userId);
+      });
     })
 
     function saveDataToPath(uniquePath, value){
