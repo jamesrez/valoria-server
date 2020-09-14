@@ -378,7 +378,8 @@
           ecdhPair: ecdhPair,
           sockets: {[socket.id]: socket},
           dimension: dimension,
-          valoria: thisValoria
+          valoria: thisValoria,
+          server: thisValoria.primaryServer
         });
         const salt = window.crypto.getRandomValues(new Uint8Array(16));
         const keyMaterial = await getKeyMaterial(password);
@@ -452,7 +453,8 @@
             ecdhPair: user.ecdhPair,
             sockets: {[socket.id] : socket},
             dimension: dimension,
-            valoria: thisValoria
+            valoria: thisValoria,
+            server: thisValoria.primaryServer
           });
           socket.emit("Login User", {userId: user.id, signature});
           socket.on("Login User", async (d) => {
@@ -478,7 +480,6 @@
       socket.emit("Get Peers in Dimension", dimension);
       socket.on("Get Peers in Dimension", (peers) => {
         if(!peers || typeof peers !== 'object') return;
-        console.log(peers);
         Object.keys(peers).forEach((socketId) => {
           allPeers[peers[socketId].userId] = peers[socketId];
         })
@@ -520,7 +521,8 @@
             ecdhPair: user.ecdhPair,
             ecdsaPair: user.ecdsaPair,
             dimension: user.dimension,
-            valoria: this
+            valoria: this,
+            server: user.server
           });
           localforage.setItem(`user.${user.id}`, user);
           if(user && cb && typeof cb === 'function') {
@@ -759,6 +761,7 @@
       this.data = u.data || {};
       this.valoria = u.valoria;
       this.keys = u.keys || {};
+      this.server = u.server || null;
     }
   
     get(key){
@@ -1248,7 +1251,8 @@
                 toUsername: thisVal.onlinePeers[thisD.user.id].username,
                 username: thisVal.user.username,
                 streaming: false,
-                dataPath: thisD.user.id + thisD.path
+                dataPath: thisD.user.id + thisD.path,
+                server: thisD.user.server
               });
               thisD.onPeerConnected = (conn) => {
                 if(!conn || !conn.dataChannel) return;

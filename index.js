@@ -621,7 +621,8 @@ function startServer(){
                   username : user.username,
                   userId : user.id,
                   socket : socket.id,
-                  dimension: dimension
+                  dimension: dimension,
+                  server: thisUrl
                 })
               })
               Object.keys(data.dimensions[dimension].sockets).forEach((socketId) => {
