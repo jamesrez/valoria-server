@@ -606,11 +606,13 @@ function startServer(){
               data.dimensions[dimension].sockets[socket.id] = {
                 username : user.username,
                 userId : user.id,
+                server : thisUrl
               };
               data.online[socket.id] = {
                 username : user.username,
                 userId : user.id,
-                dimension : dimension
+                dimension : dimension,
+                server: thisUrl
               };
               socket.emit("Login User", {status: "Success"});
 
@@ -627,7 +629,8 @@ function startServer(){
                   username : user.username,
                   userId : user.id,
                   socket : socket.id,
-                  dimension: dimension
+                  dimension: dimension,
+                  server: thisUrl
                 });
               })
               if(!process.env.AWS_ACCESS_KEY_ID){
@@ -655,7 +658,8 @@ function startServer(){
           username : d.username,
           userId : d.userId,
           socket : d.socket,
-          dimension: d.dimension
+          dimension: d.dimension,
+          server: d.server
         });
       })
     })
@@ -700,27 +704,21 @@ function startServer(){
       const dimension = data.dimensions[dimId];
       const online = {};
       Object.assign(online, dimension.sockets)
-      console.log("Whos in the dimension")
       if(!localOnly){
         let connectedAmount = Object.keys(connected.to).length;
         let count = 0;
-        console.log(connected.to);
         Object.keys(connected.to).forEach((url) => {
           sockets[url].off("Get Peers in Dimension");
-          console.log("ASKING " + url);
           sockets[url].emit("Get Peers in Dimension", dimId, true);
           sockets[url].on("Get Peers in Dimension", (serverOnline) => {
             Object.assign(online, serverOnline);
             count += 1;
-            console.log(count);
             if(count === connectedAmount){
-              console.log(online)
               socket.emit("Get Peers in Dimension", online);
             }
           })
         })
       }else{
-        console.log(online)
         socket.emit("Get Peers in Dimension", online);
       }
 
