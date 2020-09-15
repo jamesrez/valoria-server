@@ -957,27 +957,41 @@ function startServer(){
 
     //NEW WEBRTC SOCKETS
     socket.on("Connect to User", function (d) {
-      getUserById(d.toUserId, false, (user) => {
-        if(!user) return;
-        let sockets = user.sockets;
-        Object.keys(sockets).forEach((socketId) => {
-          if(data.online[socketId]){
-            io.to(socketId).emit('Getting Connection', {userId: d.userId, username: d.username, socket: socket.id, streaming: d.streaming});
-            socket.emit("Getting Connection", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath});
-          }else{
-            delete user.sockets[socketId];
-            if(!process.env.AWS_ACCESS_KEY_ID){
-              fs.writeFile(`./data/${user.id}.json`, JSON.stringify(user, null, 2), function (err) {
-                if (err) return console.log(err);
-              });
-            } else {
-              s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${user.id}.json`, Body : JSON.stringify(user, null, 2)}, (err, fileData) => {
-                if (err) console.error(`Upload Error ${err}`);
-              });
+      if(d.server === thisUrl){
+        getUserById(d.toUserId, false, (user) => {
+          if(!user) return;
+          let sockets = user.sockets;
+          Object.keys(sockets).forEach((socketId) => {
+            if(data.online[socketId]){
+              io.to(socketId).emit('Getting Connection', {userId: d.userId, username: d.username, socket: socket.id, streaming: d.streaming});
+              socket.emit("Getting Connection", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath});
+            }else{
+              delete user.sockets[socketId];
+              if(!process.env.AWS_ACCESS_KEY_ID){
+                fs.writeFile(`./data/${user.id}.json`, JSON.stringify(user, null, 2), function (err) {
+                  if (err) return console.log(err);
+                });
+              } else {
+                s3.upload({Bucket : process.env.AWS_S3_BUCKET, Key : `${user.id}.json`, Body : JSON.stringify(user, null, 2)}, (err, fileData) => {
+                  if (err) console.error(`Upload Error ${err}`);
+                });
+              }
             }
-          }
+          })
         })
-      })
+      } else {
+        if(connected.to[d.server] && sockets[d.server]){
+          sockets[d.server].off('Connect to User');
+          sockets[d.server].emit('Connect to User', {...d, relay: true});
+          sockets[d.server].on('Connect to User', (d2) => {
+            if(!d2.err){
+              socket.emit("Getting Connection", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath});
+            }
+          })
+        } else {
+          console.log("COULD NOT CONNECT TO SERVER GIVEN")
+        }
+      }
     });
 
 

@@ -713,7 +713,14 @@
         }
       }
       const thisVal = this;
-      this.sockets[this.primaryServer].emit('Connect to User', {toUserId: userId, userId: this.user.id, toUsername: this.onlinePeers[userId].username, username: this.user.username, streaming: true});
+      this.sockets[this.primaryServer].emit('Connect to User', {
+        toUserId: userId,
+        userId: this.user.id,
+        toUsername: this.onlinePeers[userId].username,
+        username: this.user.username,
+        streaming: true,
+        server: this.onlinePeers[userId].server
+      });
     }
   
     answer(d, cb){
@@ -1130,7 +1137,8 @@
                 toUsername: thisVal.onlinePeers[thisD.user.id].username,
                 username: thisVal.user.username,
                 streaming: false,
-                dataPath: thisD.user.id + thisD.path
+                dataPath: thisD.user.id + thisD.path,
+                server: thisVal.onlinePeers[thisD.user.id].server
               });
               thisD.onPeerConnected = (conn) => {
                 if(!conn || !conn.dataChannel) return;
@@ -1241,7 +1249,7 @@
                 type: 'getKey',
                 path: thisD.user.id + thisD.path,
                 userId: thisD.user.id,
-                keyUser: thisVal.user.id
+                keyUser: thisVal.user.id,
               }
               thisVal.conns[thisD.user.id].dataChannel.send(JSON.stringify(data));
             }else{
@@ -1252,7 +1260,7 @@
                 username: thisVal.user.username,
                 streaming: false,
                 dataPath: thisD.user.id + thisD.path,
-                server: thisD.user.server
+                server: thisVal.onlinePeers[thisD.user.id].server
               });
               thisD.onPeerConnected = (conn) => {
                 if(!conn || !conn.dataChannel) return;
