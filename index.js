@@ -964,7 +964,11 @@ function startServer(){
           Object.keys(sockets).forEach((socketId) => {
             if(data.online[socketId]){
               io.to(socketId).emit('Getting Connection', {userId: d.userId, username: d.username, socket: socket.id, streaming: d.streaming});
-              socket.emit("Getting Connection", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath});
+              if(!d.relay){
+                socket.emit("Getting Connection", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath});
+              } else {
+                socket.emit("Connect to User", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath});
+              }
             }else{
               delete user.sockets[socketId];
               if(!process.env.AWS_ACCESS_KEY_ID){
@@ -985,7 +989,7 @@ function startServer(){
           sockets[d.server].emit('Connect to User', {...d, relay: true});
           sockets[d.server].on('Connect to User', (d2) => {
             if(!d2.err){
-              socket.emit("Getting Connection", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath});
+              socket.emit("Getting Connection", d2);
             }
           })
         } else {
