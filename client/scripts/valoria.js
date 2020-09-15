@@ -1123,41 +1123,39 @@
           }
         }
   
-        Object.keys(thisD.user.valoria.user.sockets).forEach((id) => {
-          //ATTEMPT TO ASK USER THROUGH PEER TO PEER CONNECTION
-          if(thisD.user.id !== thisVal.user.id){
-            if(thisVal.conns[thisD.user.id] && thisVal.conns[thisD.user.id].dataChannel){
-              console.log("ALREADY HAVE P2P CONNECTION");
+        //ATTEMPT TO ASK USER THROUGH PEER TO PEER CONNECTION
+        if(thisD.user.id !== thisVal.user.id){
+          if(thisVal.conns[thisD.user.id] && thisVal.conns[thisD.user.id].dataChannel){
+            console.log("ALREADY HAVE P2P CONNECTION");
+            const data = {
+              type: 'on',
+              path: thisD.user.id + thisD.path,
+              userId: thisVal.user.id
+            }
+            thisVal.conns[thisD.user.id].dataChannel.send(JSON.stringify(data));
+          }else{
+            thisVal.sockets[thisVal.primaryServer].emit('Connect to User', {
+              toUserId: thisD.user.id,
+              userId: thisVal.user.id,
+              toUsername: thisVal.onlinePeers[thisD.user.id].username,
+              username: thisVal.user.username,
+              streaming: false,
+              dataPath: thisD.user.id + thisD.path,
+              server: thisVal.onlinePeers[thisD.user.id].server
+            });
+            thisD.onPeerConnected = (conn) => {
+              if(!conn || !conn.dataChannel) return;
               const data = {
                 type: 'on',
-                path: thisD.user.id + thisD.path,
+                path: conn.dataPath,
                 userId: thisVal.user.id
               }
-              thisVal.conns[thisD.user.id].dataChannel.send(JSON.stringify(data));
-            }else{
-              thisVal.sockets[thisVal.primaryServer].emit('Connect to User', {
-                toUserId: thisD.user.id,
-                userId: thisVal.user.id,
-                toUsername: thisVal.onlinePeers[thisD.user.id].username,
-                username: thisVal.user.username,
-                streaming: false,
-                dataPath: thisD.user.id + thisD.path,
-                server: thisVal.onlinePeers[thisD.user.id].server
-              });
-              thisD.onPeerConnected = (conn) => {
-                if(!conn || !conn.dataChannel) return;
-                const data = {
-                  type: 'on',
-                  path: conn.dataPath,
-                  userId: thisVal.user.id
-                }
-                conn.dataChannel.send(JSON.stringify(data));
-              }
+              conn.dataChannel.send(JSON.stringify(data));
             }
           }
-          //ASK VALORIA SERVER <-- SHOULD ONLY DO THIS IF CANT ESTABLISH P2P CONNECTION
-          // thisVal.sockets[thisVal.primaryServer].emit("Get User Data", {username: thisD.user.username, userId: thisD.user.id, path: thisD.path});
-        });
+        }
+        //ASK VALORIA SERVER <-- SHOULD ONLY DO THIS IF CANT ESTABLISH P2P CONNECTION
+        // thisVal.sockets[thisVal.primaryServer].emit("Get User Data", {username: thisD.user.username, userId: thisD.user.id, path: thisD.path});
       })
     }
 
