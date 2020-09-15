@@ -276,6 +276,8 @@
     async setupPrimaryConnections(socket) {
       socket.on('Getting Connection', (d) => {
         if(d.initiated){
+          console.log("FOUND USER CONNECTION");
+          console.log(d)
           this.conns[d.userId] = {
             connected: false,
             userId: d.userId,
@@ -301,6 +303,8 @@
         }else if(d.streaming){
           this.onCallIncoming(d);
         }else{
+          console.log("FOUND USER CONNECTION");
+          console.log(d)
           this.conns[d.userId] = {
             userId: d.userId,
             username: d.username,
