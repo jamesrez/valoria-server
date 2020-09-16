@@ -1255,6 +1255,7 @@
               }
               thisVal.conns[thisD.user.id].dataChannel.send(JSON.stringify(data));
             }else{
+              console.log("CONNECT PEER TO PEER")
               thisVal.sockets[thisVal.primaryServer].emit('Connect to User', {
                 toUserId: thisD.user.id,
                 userId: thisVal.user.id,
