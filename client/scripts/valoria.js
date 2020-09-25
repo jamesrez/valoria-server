@@ -1245,7 +1245,9 @@
           };
     
           //ATTEMPT TO ASK USER THROUGH PEER TO PEER CONNECTION
+          console.log("WE GOTTA CONNECT PEER TO PEER");
           if(thisD.user.id !== thisVal.user.id){
+            console.log(thisVal.conns);
             if(thisVal.conns[thisD.user.id] && thisVal.conns[thisD.user.id].dataChannel){
               const data = {
                 type: 'getKey',
