@@ -1246,6 +1246,8 @@
     
           //ATTEMPT TO ASK USER THROUGH PEER TO PEER CONNECTION
           console.log("WE GOTTA CONNECT PEER TO PEER");
+          console.log(thisD.user.id);
+          console.log(thisVal.user.id);
           if(thisD.user.id !== thisVal.user.id){
             console.log(thisVal.conns);
             if(thisVal.conns[thisD.user.id] && thisVal.conns[thisD.user.id].dataChannel){
