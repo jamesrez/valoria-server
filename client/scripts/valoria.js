@@ -877,7 +877,10 @@
         }
         uniquePath += "." + pathArr[i];
       }
+      console.log("IN SAVE DATA TO PATH");
+      console.log(value);
       localforage.setItem(`user.${this.user.id}${this.path}`, value);
+      this.onNew(value);
 
       this.user.valoria.sockets[this.user.valoria.primaryServer].emit("Save User Data", {
         data: value,
