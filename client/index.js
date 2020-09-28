@@ -111,6 +111,7 @@ async function loadOnlineUsers(){
 }
 
 async function connectToPeer(peer){
+  console.log(peer);
   valoria.getUser(peer.userId, (u) => {
     console.log(u);
     delete currentChat.channel;
@@ -161,6 +162,7 @@ async function connectToPeer(peer){
         }
       });
     }
+    console.log(u);
     getMsgsOfUser(u.get('chat').get('users').get(user.id), u.username);
     getMsgsOfUser(valoria.user.get('chat').get('users').get(u.id), user.username);
   });
