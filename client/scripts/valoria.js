@@ -1173,6 +1173,7 @@
         //ASK VALORIA SERVER <-- SHOULD ONLY DO THIS IF CANT ESTABLISH P2P CONNECTION
         // thisVal.sockets[thisVal.primaryServer].emit("Get User Data", {username: thisD.user.username, userId: thisD.user.id, path: thisD.path});
       })
+      console.log("WENT THROUGH ON");
     }
 
     async getEncryptionKey(cb){
