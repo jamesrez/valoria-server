@@ -825,11 +825,12 @@
       let data = this.user.data;
       let path = this.path;
       let uniquePath = this.user.id;
+      const thisVal = this.user.valoria;
       for (var i=0, pathArr=path.substr(1).split('.'), len=pathArr.length; i<len; i++){
         if(i === len - 1){
           data[pathArr[i]] = value;
-          if(typeof this.user.valoria.datas[uniquePath].onNew === 'function'){
-            this.user.valoria.datas[uniquePath].onNew(data);
+          if(thisVal.datas[uniquePath] && thisVal.datas[uniquePath].onNew === 'function'){
+            thisVal.datas[uniquePath].onNew(data);
           }
           if(this.user.valoria.ons[uniquePath] && typeof this.user.valoria.ons[uniquePath] === 'object') {
             const data2Send = {
@@ -852,8 +853,8 @@
                 data2SendValue[key] = {};
               }
             })
-            if(typeof this.user.valoria.datas[uniquePath].onNew === 'function'){
-              this.user.valoria.datas[uniquePath].onNew(data2SendValue);
+            if(thisVal.datas[uniquePath] && thisVal.datas[uniquePath].onNew === 'function'){
+              thisVal.datas[uniquePath].onNew(data2SendValue);
             }
             if(this.user.valoria.ons[uniquePath] && typeof this.user.valoria.ons[uniquePath] === 'object') {
               const data2Send = {
@@ -867,8 +868,8 @@
               })
             }
           }else{
-            if(typeof this.user.valoria.datas[uniquePath].onNew === 'function'){
-              this.user.valoria.datas[uniquePath].onNew(data);
+            if(thisVal.datas[uniquePath] && thisVal.datas[uniquePath].onNew === 'function'){
+              thisVal.datas[uniquePath].onNew(data);
             }
             if(this.user.valoria.ons[uniquePath] && typeof this.user.valoria.ons[uniquePath] === 'object') {
               const data2Send = {
