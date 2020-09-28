@@ -1096,6 +1096,8 @@
         }
   
         thisD.onNew = async (d) => {
+          console.log("IN DATA ONNEW FUNCTION");
+          console.log(d);
           if(!d || thisD.value === d) return;
           if(typeof d === 'string' && d.startsWith('VALENCRYPTED')){
             decrypt(d, (dec) => {
