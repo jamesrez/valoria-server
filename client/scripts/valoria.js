@@ -828,6 +828,9 @@
       for (var i=0, pathArr=path.substr(1).split('.'), len=pathArr.length; i<len; i++){
         if(i === len - 1){
           data[pathArr[i]] = value;
+          if(typeof this.user.valoria.datas[uniquePath].onNew === 'function'){
+            this.user.valoria.datas[uniquePath].onNew(data);
+          }
           if(this.user.valoria.ons[uniquePath] && typeof this.user.valoria.ons[uniquePath] === 'object') {
             const data2Send = {
               type: "onAnswer",
@@ -849,6 +852,9 @@
                 data2SendValue[key] = {};
               }
             })
+            if(typeof this.user.valoria.datas[uniquePath].onNew === 'function'){
+              this.user.valoria.datas[uniquePath].onNew(data2SendValue);
+            }
             if(this.user.valoria.ons[uniquePath] && typeof this.user.valoria.ons[uniquePath] === 'object') {
               const data2Send = {
                 type: "onAnswer",
@@ -861,6 +867,9 @@
               })
             }
           }else{
+            if(typeof this.user.valoria.datas[uniquePath].onNew === 'function'){
+              this.user.valoria.datas[uniquePath].onNew(data);
+            }
             if(this.user.valoria.ons[uniquePath] && typeof this.user.valoria.ons[uniquePath] === 'object') {
               const data2Send = {
                 type: "onAnswer",
@@ -877,11 +886,7 @@
         }
         uniquePath += "." + pathArr[i];
       }
-      console.log("IN SAVE DATA TO PATH");
-      console.log(value);
       localforage.setItem(`user.${this.user.id}${this.path}`, value);
-      console.log(this);
-      this.onNew(value);
 
       this.user.valoria.sockets[this.user.valoria.primaryServer].emit("Save User Data", {
         data: value,
