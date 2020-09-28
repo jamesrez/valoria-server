@@ -988,7 +988,8 @@
       const thisVal = thisD.user.valoria;
       const loaded = {}
       // thisD.decrypted = {};
-
+      console.log("IN ON FUNCTION OF");
+      console.log(thisD);
       async function decrypt(encryptedStr, cb){
         loaded[encryptedStr] = encryptedStr;
         const encrypted = JSON.parse(encryptedStr.substr(12))
@@ -1076,7 +1077,7 @@
       }
 
       localforage.getItem(`user.${this.user.id}${this.path}`).then(async (d) => {
-  
+        
         if(d && cb && typeof cb === 'function'){
           if(typeof d === 'string' && d.startsWith('VALENCRYPTED')){
             decrypt(d, (dec) => {
@@ -1097,7 +1098,8 @@
             callback(d);
           }
         }
-  
+        
+        console.log("DECLARING DATA ONNEW");
         thisD.onNew = async (d) => {
           console.log("IN DATA ONNEW FUNCTION");
           console.log(d);
