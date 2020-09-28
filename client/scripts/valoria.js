@@ -995,8 +995,6 @@
       const thisVal = thisD.user.valoria;
       const loaded = {}
       // thisD.decrypted = {};
-      console.log("IN ON FUNCTION OF");
-      console.log(thisD);
       async function decrypt(encryptedStr, cb){
         loaded[encryptedStr] = encryptedStr;
         const encrypted = JSON.parse(encryptedStr.substr(12))
@@ -1138,6 +1136,7 @@
         }
   
         //ATTEMPT TO ASK USER THROUGH PEER TO PEER CONNECTION
+        console.log("WE GOTTA CONNECT PEER TO PEER");
         if(thisD.user.id !== thisVal.user.id){
           if(thisVal.conns[thisD.user.id] && thisVal.conns[thisD.user.id].dataChannel){
             console.log("ALREADY HAVE P2P CONNECTION");
@@ -1148,6 +1147,7 @@
             }
             thisVal.conns[thisD.user.id].dataChannel.send(JSON.stringify(data));
           }else{
+            console.log("GOTTA CONNECT TO USER");
             thisVal.sockets[thisVal.primaryServer].emit('Connect to User', {
               toUserId: thisD.user.id,
               userId: thisVal.user.id,
