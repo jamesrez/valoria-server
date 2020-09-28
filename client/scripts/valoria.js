@@ -935,7 +935,6 @@
             true,
             ["deriveKey", "deriveBits"]
           );
-          console.log(privateKey)
 
           //DERIVE THE ENCRYPTION KEY TO ENCRYPT / DECRYPT THE DATA
           const dataEncryptionKey = await crypto.subtle.deriveKey(
@@ -973,6 +972,7 @@
             keyOwner: opts.encrypt.userId,
             keyPath: opts.encrypt.path
           })
+          console.log("TIME TO SAVE: " + this.value);
           this.saveDataToPath(this.value); 
         })
       }else{
@@ -1179,6 +1179,7 @@
   
           thisD.onKey = async (d) => {
             if(d && d.key){
+              console.log("WE FOUND A KEY FOR " + this.user.id + this.path)
               localforage.setItem(`keys.user.${this.user.id}${this.path}`, JSON.stringify(d.key));
               if(thisD.key === d.key) return;
               thisD.key = d.key;
@@ -1188,7 +1189,7 @@
                 return;
               }
             }else if(d.userId === thisVal.user.id){
-              console.log("GOtta create the key");
+              console.log("Gotta create the key");
               //CREATE THE KEY 
               thisD.key = await window.crypto.subtle.generateKey(
                 {
