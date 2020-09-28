@@ -562,6 +562,9 @@ function startServer(){
     socket.on('Get User', (id, localOnly) => {
       getUserById(id, localOnly, (user, serverSigs) => {
         if(user){
+          console.log("FOUND USER");
+          console.log(id);
+          console.log(user.id);
           socket.emit("Get User", {user, serverSigs});
         }else{
           socket.emit("Get User", {id, err : "User Does Not Exist", serverSigs});
