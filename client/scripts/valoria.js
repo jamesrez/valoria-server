@@ -344,6 +344,9 @@
           console.log(d.err);
           return;
         }
+        console.log("ACTUALLY GOT USER");
+        console.log(d.user);
+        console.log(this.onUser[d.user.id])
         if(!this.onUser[d.user.id]) return;
         this.onUser[d.user.id](user);
       });
