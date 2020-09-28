@@ -726,7 +726,7 @@ function startServer(){
     })
 
     socket.on("Peer Has Left Dimension", (d) => {
-      if(!data.dimensions[d.dimension]) data.dimension[d.dimension] = {sockets: {}};
+      if(!data.dimensions[d.dimension]) data.dimensions[d.dimension] = {sockets: {}};
       Object.keys(data.dimensions[d.dimension].sockets).forEach((socketId) => {
         io.to(socketId).emit("Peer Has Left Dimension", d.userId);
       });
