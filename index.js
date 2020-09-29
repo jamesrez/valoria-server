@@ -1012,6 +1012,8 @@ function startServer(){
           }
         }
       } else {
+        console.log(connected.to[d.server]);
+        console.log(sockets[d.server])
         if(connected.to[d.server] && sockets[d.server]){
           sockets[d.server].off('ready');
           sockets[d.server].emit('ready', {...d, relay: true});
