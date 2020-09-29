@@ -285,7 +285,8 @@
             socket: d.socket,
             initiated: true,
             localICECandidates: [],
-            dataPath: d.dataPath
+            dataPath: d.dataPath,
+            server: d.server
           };
           if(d.streaming){
             navigator.mediaDevices
@@ -295,10 +296,20 @@
             })
             .then((stream) => {
               this.localStream = stream;
-              socket.emit("join", d.userId, d.socket, this.user.id);
+              socket.emit("join p2p connection", {
+                toUserId: d.userId,
+                toUserSocket: d.socket,
+                toUserServer: d.server,
+                fromUserId: this.user.id,
+              })
             })
           }else{
-            socket.emit("join", d.userId, d.socket, this.user.id);
+            socket.emit("join p2p connection", {
+              toUserId: d.userId,
+              toUserSocket: d.socket,
+              toUserServer: d.server,
+              fromUserId: this.user.id
+            })
           }
         }else if(d.streaming){
           this.onCallIncoming(d);
@@ -310,9 +321,15 @@
             username: d.username,
             socket: d.socket,
             connected: false,
-            localICECandidates: []
+            localICECandidates: [],
+            server: d.server
           }
-          socket.emit("join", d.userId, this.user.id);
+          socket.emit("join p2p connection", {
+            toUserId: d.userId,
+            toUserSocket: d.socket,
+            toUserServer: d.server,
+            fromUserId: this.user.id
+          });
         }
       });
   
@@ -324,6 +341,8 @@
         this.onAnswer(userId, answer, this);
       });
       socket.on("ready", (userId) => {
+        console.log("WE ARE READY TO LOAD ICE SERVERS!");
+        console.log(userId);
         this.socket.emit("iceServers", userId);
       });
       socket.on("iceServers", (userId, servers) => {

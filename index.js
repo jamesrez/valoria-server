@@ -965,11 +965,11 @@ function startServer(){
           let sockets = user.sockets;
           Object.keys(sockets).forEach((socketId) => {
             if(data.online[socketId]){
-              io.to(socketId).emit('Getting Connection', {userId: d.userId, username: d.username, socket: socket.id, streaming: d.streaming});
+              io.to(socketId).emit('Getting Connection', {userId: d.userId, username: d.username, socket: socket.id, streaming: d.streaming, server: d.server});
               if(d.relay){
-                socket.emit("Connect to User", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath});
+                socket.emit("Connect to User", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath, server: d.server});
               } else {
-                socket.emit("Getting Connection", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath});
+                socket.emit("Getting Connection", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath, server: d.server});
               }
             }else{
               delete user.sockets[socketId];
@@ -1001,14 +1001,34 @@ function startServer(){
     });
 
 
-    socket.on("join", function (toUserId, toUserSocket, fromUserId) {
-      socket.emit("ready", toUserId)
-      io.to(toUserSocket).emit("ready", fromUserId);
+    socket.on("join p2p connection", function (d) {
+      if(thisUrl === d.server){
+        if(data.online[d.toUserSocket]){
+          io.to(d.toUserSocket).emit("ready", d.fromUserId);
+          if(!d.relay){
+            socket.emit("ready", d.toUserId)
+          } else {
+            socket.emit("join p2p connection", d);
+          }
+        }
+      } else {
+        if(connected.to[d.server] && sockets[d.server]){
+          sockets[d.server].off('ready');
+          sockets[d.server].emit('ready', {...d, relay: true});
+          sockets[d.server].on('ready', (d2) => {
+            if(!d2.err){
+              socket.emit("ready", d2.toUserId);
+              io.to(d2.toUserSocket).emit("ready", d2.fromUserId);
+            }
+          })
+        } else {
+          console.log("COULD NOT BRIDGE P2P CONNECTION")
+        }
+      }
     });
 
     socket.on("iceServers", function (userId) {
       var servers = {
-        /* Notice: 这边需要添加自己的 STUN/TURN 服务器, 可以考虑Coturn(https://github.com/coturn/coturn) */
         iceServers: iceServers
       };
       socket.emit("iceServers", userId, servers);
