@@ -341,9 +341,13 @@
         this.onAnswer(userId, answer, this);
       });
       socket.on("ready", (userId) => {
+        console.log("ICE SERVER TIME")
         this.socket.emit("iceServers", userId);
       });
       socket.on("iceServers", (userId, servers) => {
+        console.log("GOT SERVERS");
+        console.log(userId);
+        console.log(servers);
         if(!this.conns[userId].initiated){
           if(!this.conns[userId].peerConnection && this.conns[userId].offer){
             this.onIceServers(userId, servers, this.createAnswer);
