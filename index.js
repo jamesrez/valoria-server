@@ -1051,6 +1051,7 @@ function startServer(){
     socket.on("offer", function (d) {
       console.log("OFFER");
       console.log(d);
+      console.log(data.online);
       if(d.server === thisUrl && data.online[d.socketId]){
         io.to(d.socketId).emit('offer', d.userId, d.offer);
       } else {
