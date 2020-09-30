@@ -696,6 +696,7 @@
       peerConnection.createOffer(
         function (offer) {
           peerConnection.setLocalDescription(offer);
+          console.log("CREATING OFFER");
           socket.emit("offer", {
             userId: thisVal.user.id,
             socketId: thisVal.conns[userId].socket,
