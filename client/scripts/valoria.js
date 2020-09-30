@@ -1208,7 +1208,8 @@
               username: thisVal.user.username,
               streaming: false,
               dataPath: thisD.user.id + thisD.path,
-              server: thisVal.onlinePeers[thisD.user.id].server
+              toServer: thisVal.onlinePeers[thisD.user.id].server,
+              fromServer: thisVal.primaryServer
             });
             thisD.onPeerConnected = (conn) => {
               if(!conn || !conn.dataChannel) return;
@@ -1336,7 +1337,8 @@
                 username: thisVal.user.username,
                 streaming: false,
                 dataPath: thisD.user.id + thisD.path,
-                server: thisVal.onlinePeers[thisD.user.id].server
+                toServer: thisVal.onlinePeers[thisD.user.id].server,
+                fromServer: thisVal.primaryServer
               });
               thisD.onPeerConnected = (conn) => {
                 if(!conn || !conn.dataChannel) return;
