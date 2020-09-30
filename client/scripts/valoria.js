@@ -341,8 +341,6 @@
         this.onAnswer(userId, answer, this);
       });
       socket.on("ready", (userId) => {
-        console.log("WE ARE READY TO LOAD ICE SERVERS!");
-        console.log(userId);
         this.socket.emit("iceServers", userId);
       });
       socket.on("iceServers", (userId, servers) => {
@@ -598,7 +596,7 @@
           thisVal.conns[userId].peerConnection.addTrack(track, thisVal.localStream);
         });
       }
-      let dataChannel = thisVal.conns[userId].peerConnection.createDataChannel("chat", {
+      let dataChannel = thisVal.conns[userId].peerConnection.createDataChannel("valoria-data", {
         negotiated: true,
         // both peers must have same id
         id: 0,
@@ -651,9 +649,12 @@
           if (thisVal.conns[userId].connected) {
             socket.emit(
               "candidate",
-              thisVal.user.id,
-              userSocket,
-              JSON.stringify(event.candidate)
+              {
+                userId: thisVal.user.id,
+                socketId: userSocket,
+                candidate: JSON.stringify(event.candidate),
+                server: thisVal.conns[userId].server,
+              }
             );
           } else {
             thisVal.conns[userId].localICECandidates.push(event.candidate);
@@ -695,7 +696,12 @@
       peerConnection.createOffer(
         function (offer) {
           peerConnection.setLocalDescription(offer);
-          socket.emit("offer", thisVal.user.id, thisVal.conns[userId].socket, JSON.stringify(offer));
+          socket.emit("offer", {
+            userId: thisVal.user.id,
+            socketId: thisVal.conns[userId].socket,
+            server: thisVal.conns[userId].server,
+            offer:  JSON.stringify(offer)
+          });
         },
         function (err) {
         }
@@ -710,7 +716,12 @@
       peerConnection.createAnswer(
         function (answer) {
           peerConnection.setLocalDescription(answer);
-          socket.emit("answer", thisVal.user.id, thisVal.conns[userId].socket, JSON.stringify(answer));
+          socket.emit("answer", {
+            userId: thisVal.user.id,
+            socketId: thisVal.conns[userId].socket,
+            server: thisVal.conns[userId].server,
+            answer: JSON.stringify(answer)
+          });
         },
         function (err) {
           console.log(err);
@@ -724,7 +735,12 @@
       var rtcAnswer = new RTCSessionDescription(JSON.parse(answer));
       peerConnection.setRemoteDescription(rtcAnswer);
       thisVal.conns[userId].localICECandidates.forEach((candidate) => {        
-        socket.emit("candidate", thisVal.user.id, thisVal.conns[userId].socket, JSON.stringify(candidate));
+        socket.emit("candidate", {
+          userId: thisVal.user.id,
+          socketId: thisVal.conns[userId].socket,
+          server: thisVal.conns[userId].server,
+          candidate: JSON.stringify(candidate)
+        })
       });
       thisVal.conns[userId].localICECandidates = [];
     }

@@ -1035,18 +1035,36 @@ function startServer(){
     });
   
     // Relay candidate messages
-    socket.on("candidate", function (userId, socketId, candidate) {
-      io.to(socketId).emit('newCandidate', userId, candidate);
+    socket.on("candidate", function (d) {
+      if(d.server === thisUrl && data.online[d.socketId]){
+        io.to(d.socketId).emit('newCandidate', d.userId, d.candidate);
+      } else {
+        if(connected.to(d.server) && sockets[d.server]){
+          sockets[d.server].emit("candidate", d);
+        }
+      }
     });
   
     // Relay offers
-    socket.on("offer", function (userId, socketId, offer) {
-      io.to(socketId).emit('offer', userId, offer);
+    socket.on("offer", function (d) {
+      if(d.server === thisUrl && data.online[d.socketId]){
+        io.to(d.socketId).emit('offer', d.userId, d.offer);
+      } else {
+        if(connected.to(d.server) && sockets[d.server]){
+          sockets[d.server].emit("offer", d);
+        }
+      }
     });
   
     // Relay answers
-    socket.on("answer", function (userId, socketId, answer) {
-      io.to(socketId).emit("answer", userId, answer);
+    socket.on("answer", function (d) {
+      if(d.server === thisUrl && data.online[d.socketId]){
+        io.to(d.socketId).emit('answer', d.userId, d.answer);
+      } else {
+        if(connected.to(d.server) && sockets[d.server]){
+          sockets[d.server].emit("answer", d);
+        }
+      }
     });
 
     //OTHER SERVERS
