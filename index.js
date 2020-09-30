@@ -1039,7 +1039,7 @@ function startServer(){
       if(d.server === thisUrl && data.online[d.socketId]){
         io.to(d.socketId).emit('newCandidate', d.userId, d.candidate);
       } else {
-        if(connected.to(d.server) && sockets[d.server]){
+        if(connected.to[d.server] && sockets[d.server]){
           sockets[d.server].emit("candidate", d);
         }
       }
@@ -1052,7 +1052,7 @@ function startServer(){
       if(d.server === thisUrl && data.online[d.socketId]){
         io.to(d.socketId).emit('offer', d.userId, d.offer);
       } else {
-        if(connected.to(d.server) && sockets[d.server]){
+        if(connected.to[d.server] && sockets[d.server]){
           sockets[d.server].emit("offer", d);
         }
       }
@@ -1063,7 +1063,7 @@ function startServer(){
       if(d.server === thisUrl && data.online[d.socketId]){
         io.to(d.socketId).emit('answer', d.userId, d.answer);
       } else {
-        if(connected.to(d.server) && sockets[d.server]){
+        if(connected.to[d.server] && sockets[d.server]){
           sockets[d.server].emit("answer", d);
         }
       }
