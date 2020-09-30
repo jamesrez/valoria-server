@@ -1018,7 +1018,7 @@ function startServer(){
           sockets[d.toUserServer].on('join p2p connections', (d2) => {
             if(!d2.err){
               socket.emit("ready", d2.toUserId);
-              // io.to(d2.toUserSocket).emit("ready", d2.fromUserId);
+              io.to(d2.toUserSocket).emit("ready", d2.fromUserId);
             }
           })
         } else {
