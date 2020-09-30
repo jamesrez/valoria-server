@@ -1002,7 +1002,7 @@ function startServer(){
 
 
     socket.on("join p2p connection", function (d) {
-      if(thisUrl === d.server){
+      if(thisUrl === d.toUserServer){
         if(data.online[d.toUserSocket]){
           io.to(d.toUserSocket).emit("ready", d.fromUserId);
           if(!d.relay){
@@ -1012,12 +1012,10 @@ function startServer(){
           }
         }
       } else {
-        console.log(connected.to[d.server]);
-        console.log(sockets[d.server])
-        if(connected.to[d.server] && sockets[d.server]){
-          sockets[d.server].off('ready');
-          sockets[d.server].emit('ready', {...d, relay: true});
-          sockets[d.server].on('ready', (d2) => {
+        if(connected.to[d.toUserServer] && sockets[d.toUserServer]){
+          sockets[d.toUserServer].off('ready');
+          sockets[d.toUserServer].emit('ready', {...d, relay: true});
+          sockets[d.toUserServer].on('ready', (d2) => {
             if(!d2.err){
               socket.emit("ready", d2.toUserId);
               io.to(d2.toUserSocket).emit("ready", d2.fromUserId);
