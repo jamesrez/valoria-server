@@ -148,10 +148,10 @@ let ECDSAPair = {
       fs.writeFileSync('data/servers.json', servers, {flag: 'a'});
     }
     data.online = {};
-    if(process.env.TWILIO_ACCOUNT_SID){
-      const token = await twilioClient.tokens.create();
-      iceServers = token.iceServers;
-    }
+    // if(process.env.TWILIO_ACCOUNT_SID){
+    //   const token = await twilioClient.tokens.create();
+    //   iceServers = token.iceServers;
+    // }
     startServer();
   } else {
     AWS.config.update({region: 'us-west-1'});
@@ -163,10 +163,10 @@ let ECDSAPair = {
       if(!err && savedServers && savedServers.Body ) {
         savedServers= JSON.parse(savedServers.Body.toString());
         Object.assign(servers, savedServers);
-        if(process.env.TWILIO_ACCOUNT_SID){
-          const token = await twilioClient.tokens.create();
-          iceServers = token.iceServers;
-        }
+        // if(process.env.TWILIO_ACCOUNT_SID){
+        //   const token = await twilioClient.tokens.create();
+        //   iceServers = token.iceServers;
+        // }
       }
       startServer();
     });
@@ -1015,7 +1015,7 @@ function startServer(){
         if(connected.to[d.toUserServer] && sockets[d.toUserServer]){
           sockets[d.toUserServer].off('join p2p connection');
           sockets[d.toUserServer].emit('join p2p connection', {...d, relay: true});
-          sockets[d.toUserServer].on('join p2p connections', (d2) => {
+          sockets[d.toUserServer].on('join p2p connection', (d2) => {
             if(!d2.err){
               socket.emit("ready", d2.toUserId);
               io.to(d2.toUserSocket).emit("ready", d2.fromUserId);
