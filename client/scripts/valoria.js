@@ -708,7 +708,8 @@
           peerConnection.setLocalDescription(offer);
           console.log("CREATING OFFER");
           socket.emit("offer", {
-            userId: thisVal.user.id,
+            fromUserId: thisVal.user.id,
+            toUserId: userId,
             socketId: thisVal.conns[userId].socket,
             server: thisVal.conns[userId].server,
             offer:  JSON.stringify(offer)
@@ -729,7 +730,8 @@
           peerConnection.setLocalDescription(answer);
           console.log("CREATING ANSWER");
           socket.emit("answer", {
-            userId: thisVal.user.id,
+            fromUserId: thisVal.user.id,
+            toUserId: userId,
             socketId: thisVal.conns[userId].socket,
             server: thisVal.conns[userId].server,
             answer: JSON.stringify(answer)
