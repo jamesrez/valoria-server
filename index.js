@@ -1013,12 +1013,12 @@ function startServer(){
         }
       } else {
         if(connected.to[d.toUserServer] && sockets[d.toUserServer]){
-          sockets[d.toUserServer].off('ready');
-          sockets[d.toUserServer].emit('ready', {...d, relay: true});
-          sockets[d.toUserServer].on('ready', (d2) => {
+          sockets[d.toUserServer].off('join p2p connection');
+          sockets[d.toUserServer].emit('join p2p connection', {...d, relay: true});
+          sockets[d.toUserServer].on('join p2p connections', (d2) => {
             if(!d2.err){
               socket.emit("ready", d2.toUserId);
-              io.to(d2.toUserSocket).emit("ready", d2.fromUserId);
+              // io.to(d2.toUserSocket).emit("ready", d2.fromUserId);
             }
           })
         } else {
