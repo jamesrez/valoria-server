@@ -596,6 +596,7 @@
           thisVal.conns[userId].peerConnection.addTrack(track, thisVal.localStream);
         });
       }
+      console.log("IN ONICESERVERs")
       let dataChannel = thisVal.conns[userId].peerConnection.createDataChannel("valoria-data", {
         negotiated: true,
         // both peers must have same id
@@ -647,6 +648,7 @@
       thisVal.conns[userId].peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
           if (thisVal.conns[userId].connected) {
+            console.log("GOTTA SEND A CANDIDATE");
             socket.emit(
               "candidate",
               {
@@ -679,6 +681,7 @@
             break;
         }
       };
+      console.log("GOTTA CALLBACK")
       if(callback && typeof callback === 'function'){
         callback(thisVal, userId);
       }
