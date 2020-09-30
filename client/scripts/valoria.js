@@ -773,7 +773,8 @@
         toUsername: this.onlinePeers[userId].username,
         username: this.user.username,
         streaming: true,
-        server: this.onlinePeers[userId].server
+        toServer: this.onlinePeers[userId].server,
+        fromServer: this.primaryServer
       });
     }
   

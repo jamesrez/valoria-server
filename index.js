@@ -959,17 +959,17 @@ function startServer(){
     socket.on("Connect to User", function (d) {
       console.log("CONNECT TO USER");
       console.log(d);
-      if(d.server === thisUrl){
+      if(d.toServer === thisUrl){
         getUserById(d.toUserId, false, (user) => {
           if(!user) return;
           let sockets = user.sockets;
           Object.keys(sockets).forEach((socketId) => {
             if(data.online[socketId]){
-              io.to(socketId).emit('Getting Connection', {userId: d.userId, username: d.username, socket: socket.id, streaming: d.streaming, server: d.server});
+              io.to(socketId).emit('Getting Connection', {userId: d.userId, username: d.username, socket: socket.id, streaming: d.streaming, server: d.fromServer});
               if(d.relay){
-                socket.emit("Connect to User", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath, server: d.server});
+                socket.emit("Connect to User", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath, fromServer: d.fromServer, toServer: d.toServer});
               } else {
-                socket.emit("Getting Connection", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath, server: d.server});
+                socket.emit("Getting Connection", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath, server: d.toServer});
               }
             }else{
               delete user.sockets[socketId];
