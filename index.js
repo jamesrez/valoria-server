@@ -1036,6 +1036,8 @@ function startServer(){
   
     // Relay candidate messages
     socket.on("candidate", function (d) {
+      console.log("CANDIDATE");
+      console.log(d);
       if(d.server === thisUrl && data.online[d.socketId]){
         io.to(d.socketId).emit('newCandidate', d.userId, d.candidate);
       } else {

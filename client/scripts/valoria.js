@@ -334,10 +334,12 @@
       });
   
       socket.on("offer", (userId, offer) => {
+        console.log("GOTTA OFFER");
         this.conns[userId].offer = offer;
         socket.emit("iceServers", userId);
       });
       socket.on("answer", (userId, answer) => {
+        console.log("GOTTA ANSWER");
         this.onAnswer(userId, answer, this);
       });
       socket.on("ready", (userId) => {
@@ -357,6 +359,7 @@
         }
       });
       socket.on("newCandidate", (userId, candidate) => {
+        console.log("GOTTA NEWCANDIDATE");
         this.onCandidate(userId, candidate, this)
       });
 
@@ -724,6 +727,7 @@
       peerConnection.createAnswer(
         function (answer) {
           peerConnection.setLocalDescription(answer);
+          console.log("CREATING ANSWER");
           socket.emit("answer", {
             userId: thisVal.user.id,
             socketId: thisVal.conns[userId].socket,
@@ -742,6 +746,7 @@
       const peerConnection = thisVal.conns[userId].peerConnection;
       var rtcAnswer = new RTCSessionDescription(JSON.parse(answer));
       peerConnection.setRemoteDescription(rtcAnswer);
+      console.log("TIME TO ADD CANDIDATES IN ONANSWER");
       thisVal.conns[userId].localICECandidates.forEach((candidate) => {        
         socket.emit("candidate", {
           userId: thisVal.user.id,
