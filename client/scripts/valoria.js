@@ -259,6 +259,9 @@
 
       if(opts.server) {
         this.primaryServer = opts.server;
+        if(opts.server.startsWith("/")){
+          opts.server = window.location.origin + opts.server;
+        }
         this.sockets[this.primaryServer] = io(this.primaryServer)
         this.setupPrimaryConnections(this.sockets[this.primaryServer]);
       } else {
