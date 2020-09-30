@@ -342,7 +342,7 @@
       });
       socket.on("ready", (userId) => {
         console.log("ICE SERVER TIME")
-        this.socket.emit("iceServers", userId);
+        socket.emit("iceServers", userId);
       });
       socket.on("iceServers", (userId, servers) => {
         console.log("GOT SERVERS");
