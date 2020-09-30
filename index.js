@@ -986,10 +986,10 @@ function startServer(){
           })
         })
       } else {
-        if(connected.to[d.server] && sockets[d.server]){
-          sockets[d.server].off('Connect to User');
-          sockets[d.server].emit('Connect to User', {...d, relay: true});
-          sockets[d.server].on('Connect to User', (d2) => {
+        if(connected.to[d.toServer] && sockets[d.toServer]){
+          sockets[d.toServer].off('Connect to User');
+          sockets[d.toServer].emit('Connect to User', {...d, relay: true});
+          sockets[d.toServer].on('Connect to User', (d2) => {
             if(!d2.err){
               socket.emit("Getting Connection", d2);
             }
