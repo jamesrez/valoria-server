@@ -307,6 +307,7 @@
               })
             })
           }else{
+            console.log(d.socket)
             socket.emit("join p2p connection", {
               toUserId: d.userId,
               toUserSocket: d.socket,
@@ -327,6 +328,7 @@
             localICECandidates: [],
             server: d.server
           }
+          console.log(d.socket)
           socket.emit("join p2p connection", {
             toUserId: d.userId,
             toUserSocket: d.socket,
