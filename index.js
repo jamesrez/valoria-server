@@ -991,7 +991,7 @@ function startServer(){
           sockets[d.toServer].emit('Connect to User', {...d, relay: true});
           sockets[d.toServer].on('Connect to User', (d2) => {
             if(!d2.err){
-              socket.emit("Getting Connection", {userId: d2.userId, username: d2.username, socket: d2.socketId, initiated: d2.initiated, streaming: d2.streaming, dataPath: d2.dataPath, server: d2.toServer});
+              socket.emit("Getting Connection", {userId: d2.userId, username: d2.username, socket: d2.socket, initiated: d2.initiated, streaming: d2.streaming, dataPath: d2.dataPath, server: d2.toServer});
             }
           })
         } else {
