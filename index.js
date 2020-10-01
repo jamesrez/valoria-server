@@ -1002,6 +1002,8 @@ function startServer(){
 
 
     socket.on("join p2p connection", function (d) {
+      console.log("JOIN START");
+      console.log(d);
       if(thisUrl === d.toUserServer){
         if(data.online[d.toUserSocket]){
           console.log("TELLING " + d.toUserId);
