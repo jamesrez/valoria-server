@@ -620,9 +620,11 @@
         if(thisVal.datas[thisVal.conns[userId].dataPath]){
           thisVal.datas[thisVal.conns[userId].dataPath].onPeerConnected(thisVal.conns[userId]);
         }
+        dataChannel.send("Yo this is " + thisVal.user.username);
       };
       dataChannel.onmessage = function (event) {
         const data = JSON.parse(event.data);  
+        console.log(data);
         if(data.type === 'on' && data.path){
           if(!thisVal.ons[data.path]) thisVal.ons[data.path] = {};
           thisVal.ons[data.path][data.userId] = thisVal.conns[userId];
