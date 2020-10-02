@@ -624,7 +624,6 @@
       };
       dataChannel.onmessage = function (event) {
         const data = JSON.parse(event.data);  
-        console.log(data);
         if(data.type === 'on' && data.path){
           if(!thisVal.ons[data.path]) thisVal.ons[data.path] = {};
           thisVal.ons[data.path][data.userId] = thisVal.conns[userId];
