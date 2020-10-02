@@ -780,7 +780,7 @@
         streaming: true,
         toServer: this.onlinePeers[userId].server,
         fromServer: this.primaryServer,
-        fromSocket: this.sockets[primaryServer].id
+        fromSocket: this.sockets[this.primaryServer].id
       });
     }
   
@@ -1216,7 +1216,7 @@
               dataPath: thisD.user.id + thisD.path,
               toServer: thisVal.onlinePeers[thisD.user.id].server,
               fromServer: thisVal.primaryServer,
-              fromSocket: thisVal.sockets[primaryServer].id
+              fromSocket: thisVal.sockets[thisVal.primaryServer].id
             });
             thisD.onPeerConnected = (conn) => {
               if(!conn || !conn.dataChannel) return;
@@ -1346,7 +1346,7 @@
                 dataPath: thisD.user.id + thisD.path,
                 toServer: thisVal.onlinePeers[thisD.user.id].server,
                 fromServer: thisVal.primaryServer,
-                fromSocket: thisVal.sockets[primaryServer].id
+                fromSocket: thisVal.sockets[thisVal.primaryServer].id
               });
               thisD.onPeerConnected = (conn) => {
                 if(!conn || !conn.dataChannel) return;
