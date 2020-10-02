@@ -965,7 +965,7 @@ function startServer(){
           let sockets = user.sockets;
           Object.keys(sockets).forEach((socketId) => {
             if(data.online[socketId]){
-              io.to(socketId).emit('Getting Connection', {userId: d.userId, username: d.username, socket: socket.id, streaming: d.streaming, server: d.fromServer});
+              io.to(socketId).emit('Getting Connection', {userId: d.userId, username: d.username, socket: d.fromSocket, streaming: d.streaming, server: d.fromServer});
               if(d.relay){
                 socket.emit("Connect to User", {userId: d.toUserId, username: d.toUsername, socket: socketId, initiated: true, streaming: d.streaming, dataPath: d.dataPath, fromServer: d.fromServer, toServer: d.toServer});
               } else {
