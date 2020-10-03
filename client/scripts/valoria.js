@@ -282,35 +282,17 @@
           console.log("FOUND USER CONNECTION");
           console.log(d)
           const thisVal = this;
-          if(this.conns[d.userId] && this.conns[d.userId].peerConnection){
-            if(d.streaming){
-              navigator.mediaDevices
-              .getUserMedia({
-                video: true,
-                audio: true,
-              })
-              .then((stream) => {
-                this.localStream = stream;
-                this.localStream.getTracks().forEach(function (track) {
-                  console.log("ADDING TRACK");
-                  console.log(track);
-                  thisVal.conns[d.userId].peerConnection.addTrack(track, thisVal.localStream);
-                });
-              })
-            }
-          }else{
-            this.conns[d.userId] = {
-              connected: false,
-              userId: d.userId,
-              username: d.username,
-              socket: d.socket,
-              initiated: true,
-              localICECandidates: [],
-              incomingCandidates: [],
-              dataPath: d.dataPath,
-              server: d.server
-            };
-          }
+          this.conns[d.userId] = {
+            connected: false,
+            userId: d.userId,
+            username: d.username,
+            socket: d.socket,
+            initiated: true,
+            localICECandidates: [],
+            incomingCandidates: [],
+            dataPath: d.dataPath,
+            server: d.server
+          };
           if(d.streaming){
             navigator.mediaDevices
             .getUserMedia({
@@ -622,105 +604,107 @@
       const socket = this.sockets[this.primaryServer];
       const thisVal = this;
       const userSocket = this.conns[userId].socket;
-      if(!thisVal.conns[userId].peerConnection){
-        thisVal.conns[userId].peerConnection = new RTCPeerConnection({
-          iceServers: turn.iceServers,
-        });
-        if(thisVal.localStream){
-          thisVal.localStream.getTracks().forEach(function (track) {
-            thisVal.conns[userId].peerConnection.addTrack(track, thisVal.localStream);
-          });
+      thisVal.conns[userId].peerConnection = new RTCPeerConnection({
+        iceServers: turn.iceServers,
+      });
+
+      thisVal.conns[userId].peerConnection.valoria = thisVal;
+      thisVal.conns[userId].peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          console.log("GOTTA SEND A CANDIDATE");
+          socket.emit(
+            "candidate",
+            {
+              userId: thisVal.user.id,
+              socketId: userSocket,
+              candidate: JSON.stringify(event.candidate),
+              server: thisVal.conns[userId].server,
+            }
+          );
         }
-        console.log("IN ONICESERVERs")
-        let dataChannel = thisVal.conns[userId].peerConnection.createDataChannel("valoria-data", {
-          negotiated: true,
-          // both peers must have same id
-          id: 0,
-        });
-        dataChannel.onopen = function (event) {
-          console.log("dataChannel opened");
-          thisVal.conns[userId].dataChannel = dataChannel;
-          if(thisVal.datas[thisVal.conns[userId].dataPath]){
-            thisVal.datas[thisVal.conns[userId].dataPath].onPeerConnected(thisVal.conns[userId]);
-          }
-        };
-        dataChannel.onmessage = function (event) {
-          const data = JSON.parse(event.data);  
-          if(data.type === 'on' && data.path){
-            if(!thisVal.ons[data.path]) thisVal.ons[data.path] = {};
-            thisVal.ons[data.path][data.userId] = thisVal.conns[userId];
-            localforage.getItem(`user.${data.path}`).then((d) => {
-              const data2Send = {
-                type: "onAnswer",
-                path: data.path,
-                userId : thisVal.user.id,
-                value: d
-              }
-              dataChannel.send(JSON.stringify(data2Send));
-            })
-          }
-          if(data.type === 'onAnswer' && data.path && thisVal.datas[data.path]){
-            thisVal.datas[data.path].onNew(data.value)
-          }
-          if(data.type === 'getKey'){
-            localforage.getItem(`keys.user.${data.path}.${data.keyUser}`).then((d) => {
-              if(d) dataChannel.send({
-                type: 'onKey',
-                path: data.path,
-                userId: data.userId,
-                keyUser: data.keyUser,
-                key: d
-              })
-            })
-          }
-          if(data.type === 'onKey' && data.path && thisVal.datas[data.path]){
-            console.log("RECEIVED KEY FROM P2P: ", data.key);
-            thisVal.data[data.path].onKey(data.key)
-          }
-        };
-    
-        thisVal.conns[userId].peerConnection.valoria = thisVal;
-        thisVal.conns[userId].peerConnection.onicecandidate = (event) => {
-          if (event.candidate) {
-            console.log("GOTTA SEND A CANDIDATE");
-            socket.emit(
-              "candidate",
-              {
-                userId: thisVal.user.id,
-                socketId: userSocket,
-                candidate: JSON.stringify(event.candidate),
-                server: thisVal.conns[userId].server,
-              }
-            );
-          }
-          thisVal.conns[userId].incomingCandidates.forEach((c) => {
-            thisVal.conns[userId].peerConnection.addIceCandidate(c);
+        thisVal.conns[userId].incomingCandidates.forEach((c) => {
+          thisVal.conns[userId].peerConnection.addIceCandidate(c);
+        })
+        thisVal.conns[userId].incomingCandidates = [];
+      }
+      thisVal.conns[userId].peerConnection.ontrack = (event) => {
+        console.log("GOT A STREAM FROM REMOTE");
+        thisVal.onCallAnswered(event.streams[0])
+        thisVal.conns[userId].remoteStream = event.streams[0];
+        thisVal.conns[userId].connected = true;
+      }
+  
+      thisVal.conns[userId].peerConnection.oniceconnectionstatechange = function (event) {
+        switch (thisVal.conns[userId].peerConnection.iceConnectionState) {
+          case "connected":
+            break;
+          case "disconnected":
+          case "failed":
+            thisVal.createOffer(thisVal, userId)
+            break;
+          case "closed":
+            break;
+        }
+      };
+
+      if(thisVal.localStream){
+        console.log("ADDED STREAM TO NEW PEER CONNECTION")
+        thisVal.conns[userId].peerConnection.addStream(thisVal.localStream);
+        // thisVal.localStream.getTracks().forEach(function (track) {
+        //   thisVal.conns[userId].peerConnection.addTrack(track, thisVal.localStream);
+        // });
+      }
+      console.log("IN ONICESERVERs")
+      let dataChannel = thisVal.conns[userId].peerConnection.createDataChannel("valoria-data", {
+        negotiated: true,
+        // both peers must have same id
+        id: 0,
+      });
+      dataChannel.onopen = function (event) {
+        console.log("dataChannel opened");
+        thisVal.conns[userId].dataChannel = dataChannel;
+        if(thisVal.datas[thisVal.conns[userId].dataPath]){
+          thisVal.datas[thisVal.conns[userId].dataPath].onPeerConnected(thisVal.conns[userId]);
+        }
+      };
+      dataChannel.onmessage = function (event) {
+        const data = JSON.parse(event.data);  
+        if(data.type === 'on' && data.path){
+          if(!thisVal.ons[data.path]) thisVal.ons[data.path] = {};
+          thisVal.ons[data.path][data.userId] = thisVal.conns[userId];
+          localforage.getItem(`user.${data.path}`).then((d) => {
+            const data2Send = {
+              type: "onAnswer",
+              path: data.path,
+              userId : thisVal.user.id,
+              value: d
+            }
+            dataChannel.send(JSON.stringify(data2Send));
           })
-          thisVal.conns[userId].incomingCandidates = [];
         }
-        thisVal.conns[userId].peerConnection.ontrack = (event) => {
-          console.log("GOT A STREAM FROM REMOTE");
-          thisVal.onCallAnswered(event.streams[0])
-          thisVal.conns[userId].remoteStream = event.streams[0];
-          thisVal.conns[userId].connected = true;
+        if(data.type === 'onAnswer' && data.path && thisVal.datas[data.path]){
+          thisVal.datas[data.path].onNew(data.value)
         }
-    
-        thisVal.conns[userId].peerConnection.oniceconnectionstatechange = function (event) {
-          switch (thisVal.conns[userId].peerConnection.iceConnectionState) {
-            case "connected":
-              break;
-            case "disconnected":
-            case "failed":
-              thisVal.createOffer(thisVal, userId)
-              break;
-            case "closed":
-              break;
-          }
-        };
-        console.log("GOTTA CALLBACK")
-        if(callback && typeof callback === 'function'){
-          callback(thisVal, userId);
+        if(data.type === 'getKey'){
+          localforage.getItem(`keys.user.${data.path}.${data.keyUser}`).then((d) => {
+            if(d) dataChannel.send({
+              type: 'onKey',
+              path: data.path,
+              userId: data.userId,
+              keyUser: data.keyUser,
+              key: d
+            })
+          })
         }
+        if(data.type === 'onKey' && data.path && thisVal.datas[data.path]){
+          console.log("RECEIVED KEY FROM P2P: ", data.key);
+          thisVal.data[data.path].onKey(data.key)
+        }
+      };
+  
+      console.log("GOTTA CALLBACK")
+      if(callback && typeof callback === 'function'){
+        callback(thisVal, userId);
       }
     }
   
@@ -844,23 +828,15 @@
       .then((stream) => {
         this.localStream = stream;
         const thisVal = this;
-        if(this.conns[d.userId] && this.conns[d.userId].peerConnection){
-          this.localStream.getTracks().forEach(function (track) {
-            console.log("ADDING TRACK");
-            console.log(track);
-            thisVal.conns[d.userId].peerConnection.addTrack(track, thisVal.localStream);
-          });
-        }else{
-          this.conns[d.userId] = {
-            userId: d.userId,
-            username: d.username,
-            socket: d.socket,
-            connected: false,
-            localICECandidates: [],
-            incomingCandidates: []
-          }
-          this.sockets[this.primaryServer].emit("join", d.userId, d.socket, this.user.id);
+        this.conns[d.userId] = {
+          userId: d.userId,
+          username: d.username,
+          socket: d.socket,
+          connected: false,
+          localICECandidates: [],
+          incomingCandidates: []
         }
+        this.sockets[this.primaryServer].emit("join", d.userId, d.socket, this.user.id);
       })
     }
   
