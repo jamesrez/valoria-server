@@ -602,7 +602,6 @@
       thisVal.conns[userId].peerConnection = new RTCPeerConnection({
         iceServers: turn.iceServers,
       });
-      console.log("BETTER MAKE THIS BEFORE CREATE OFFER");
       if(thisVal.localStream){
         thisVal.localStream.getTracks().forEach(function (track) {
           thisVal.conns[userId].peerConnection.addTrack(track, thisVal.localStream);
@@ -670,6 +669,10 @@
             }
           );
         }
+        thisVal.conns[userId].incomingCandidates.forEach((c) => {
+          thisVal.conns[userId].peerConnection.addIceCandidate(c);
+        })
+        thisVal.conns[userId].incomingCandidates = [];
       }
       thisVal.conns[userId].peerConnection.ontrack = (event) => {
         console.log("GOT A STREAM FROM REMOTE");
