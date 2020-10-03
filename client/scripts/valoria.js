@@ -739,24 +739,19 @@
     createOffer(thisVal, userId){
       const socket = thisVal.sockets[thisVal.primaryServer];
       const peerConnection = thisVal.conns[userId].peerConnection;
-      peerConnection.createOffer(
-        function (offer) {
-          peerConnection.setLocalDescription(offer);
-          console.log("CREATING OFFER");
-          socket.emit("offer", {
-            fromUserId: thisVal.user.id,
-            toUserId: userId,
-            socketId: thisVal.conns[userId].socket,
-            server: thisVal.conns[userId].server,
-            offer:  JSON.stringify(offer)
-          });
-        },
-        function (err) {
-        }, {
-          offerToReceiveAudio: true,
-          offerToReceiveVideo: true
-        }
-      );
+      peerConnection.createOffer().then((offer) => {
+        peerConnection.setLocalDescription(offer);
+        console.log("CREATING OFFER");
+        socket.emit("offer", {
+          fromUserId: thisVal.user.id,
+          toUserId: userId,
+          socketId: thisVal.conns[userId].socket,
+          server: thisVal.conns[userId].server,
+          offer:  JSON.stringify(offer)
+        });
+      }).catch((err) => {
+        console.log(err);
+      })
     }
   
     createAnswer(thisVal, userId) {
@@ -764,22 +759,19 @@
       const socket = thisVal.sockets[thisVal.primaryServer];
       let rtcOffer = new RTCSessionDescription(JSON.parse(thisVal.conns[userId].offer));
       peerConnection.setRemoteDescription(rtcOffer);
-      peerConnection.createAnswer(
-        function (answer) {
-          peerConnection.setLocalDescription(answer);
-          console.log("CREATING ANSWER");
-          socket.emit("answer", {
-            fromUserId: thisVal.user.id,
-            toUserId: userId,
-            socketId: thisVal.conns[userId].socket,
-            server: thisVal.conns[userId].server,
-            answer: JSON.stringify(answer)
-          });
-        },
-        function (err) {
-          console.log(err);
-        }
-      );
+      peerConnection.createAnswer().then((answer) => {
+        peerConnection.setLocalDescription(answer);
+        console.log("CREATING ANSWER");
+        socket.emit("answer", {
+          fromUserId: thisVal.user.id,
+          toUserId: userId,
+          socketId: thisVal.conns[userId].socket,
+          server: thisVal.conns[userId].server,
+          answer: JSON.stringify(answer)
+        });
+      }).catch((err) => {
+        console.log(err);
+      })
     }
   
     onAnswer(userId, answer, thisVal) {
