@@ -778,9 +778,6 @@
         },
         function (err) {
           console.log(err);
-        },{
-          offerToReceiveAudio: true,
-          offerToReceiveVideo: true
         }
       );
     }
