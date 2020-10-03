@@ -297,7 +297,9 @@
             navigator.mediaDevices
             .getUserMedia({
               video: true,
-              audio: true,
+              audio: {
+                echoCancellation: true
+              },
             })
             .then((stream) => {
               this.localStream = stream;
@@ -825,7 +827,9 @@
       navigator.mediaDevices
       .getUserMedia({
         video: true,
-        audio: true,
+        audio: {
+          echoCancellation: true
+        },
       })
       .then((stream) => {
         this.localStream = stream;
