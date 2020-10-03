@@ -281,6 +281,7 @@
         if(d.initiated){
           console.log("FOUND USER CONNECTION");
           console.log(d)
+          const thisVal = this;
           if(this.conns[d.userId] && this.conns[d.userId].peerConnection){
             if(d.streaming){
               navigator.mediaDevices
@@ -291,7 +292,7 @@
               .then((stream) => {
                 this.localStream = stream;
                 this.localStream.getTracks().forEach(function (track) {
-                  this.conns[d.userId].peerConnection.addTrack(track, this.localStream);
+                  thisVal.conns[d.userId].peerConnection.addTrack(track, thisVal.localStream);
                 });
               })
             }
@@ -845,9 +846,10 @@
       })
       .then((stream) => {
         this.localStream = stream;
+        const thisVal = this;
         if(this.conns[d.userId] && this.conns[d.userId].peerConnection){
           this.localStream.getTracks().forEach(function (track) {
-            this.conns[d.userId].peerConnection.addTrack(track, this.localStream);
+            thisVal.conns[d.userId].peerConnection.addTrack(track, thisVal.localStream);
           });
         }else{
           this.conns[d.userId] = {
