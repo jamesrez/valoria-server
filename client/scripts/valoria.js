@@ -765,6 +765,8 @@
 
     onOffer(userId, offer, thisVal) {
       const socket = thisVal.sockets[thisVal.primaryServer];
+      console.log(userId);
+      console.log(thisVal.conns);
       const peerConnection = thisVal.conns[userId].peerConnection;
       var rtcOffer = new RTCSessionDescription(JSON.parse(offer));
       peerConnection.setRemoteDescription(rtcOffer);
