@@ -656,20 +656,16 @@
       thisVal.conns[userId].peerConnection.valoria = thisVal;
       thisVal.conns[userId].peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
-          if (thisVal.conns[userId].connected) {
-            console.log("GOTTA SEND A CANDIDATE");
-            socket.emit(
-              "candidate",
-              {
-                userId: thisVal.user.id,
-                socketId: userSocket,
-                candidate: JSON.stringify(event.candidate),
-                server: thisVal.conns[userId].server,
-              }
-            );
-          } else {
-            thisVal.conns[userId].localICECandidates.push(event.candidate);
-          }
+          console.log("GOTTA SEND A CANDIDATE");
+          socket.emit(
+            "candidate",
+            {
+              userId: thisVal.user.id,
+              socketId: userSocket,
+              candidate: JSON.stringify(event.candidate),
+              server: thisVal.conns[userId].server,
+            }
+          );
         }
       }
       thisVal.conns[userId].peerConnection.ontrack = (event) => {
