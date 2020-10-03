@@ -341,15 +341,16 @@
       socket.on("offer", (userId, offer) => {
         console.log("GOTTA OFFER");
         this.conns[userId].offer = offer;
-        this.onOffer(userId, offer, this);
+        socket.emit("iceServers", userId);
       });
       socket.on("answer", (userId, answer) => {
         console.log("GOTTA ANSWER");
         this.onAnswer(userId, answer, this);
       });
       socket.on("ready", (userId) => {
-        console.log("ICE SERVER TIME")
-        socket.emit("iceServers", userId);
+        if(!this.conns[userId].initiated){
+          socket.emit("iceServers", userId);
+        }
       });
       socket.on("iceServers", (userId, servers) => {
         if(!this.conns[userId].initiated){
@@ -600,6 +601,7 @@
       thisVal.conns[userId].peerConnection = new RTCPeerConnection({
         iceServers: turn.iceServers,
       });
+      console.log("BETTER MAKE THIS BEFORE CREATE OFFER");
       if(thisVal.localStream){
         thisVal.localStream.getTracks().forEach(function (track) {
           thisVal.conns[userId].peerConnection.addTrack(track, thisVal.localStream);
@@ -738,6 +740,15 @@
             server: thisVal.conns[userId].server,
             answer: JSON.stringify(answer)
           });
+          thisVal.conns[userId].localICECandidates.forEach((candidate) => {        
+            socket.emit("candidate", {
+              userId: thisVal.user.id,
+              socketId: thisVal.conns[userId].socket,
+              server: thisVal.conns[userId].server,
+              candidate: JSON.stringify(candidate)
+            })
+          });
+          thisVal.conns[userId].localICECandidates = [];
         },
         function (err) {
           console.log(err);
@@ -762,24 +773,24 @@
       thisVal.conns[userId].localICECandidates = [];
     }
 
-    onOffer(userId, offer, thisVal) {
-      const socket = thisVal.sockets[thisVal.primaryServer];
-      console.log(userId);
-      console.log(thisVal.conns);
-      const peerConnection = thisVal.conns[userId].peerConnection;
-      var rtcOffer = new RTCSessionDescription(JSON.parse(offer));
-      peerConnection.setRemoteDescription(rtcOffer);
-      console.log("TIME TO ADD CANDIDATES IN ONOFFER");
-      thisVal.conns[userId].localICECandidates.forEach((candidate) => {        
-        socket.emit("candidate", {
-          userId: thisVal.user.id,
-          socketId: thisVal.conns[userId].socket,
-          server: thisVal.conns[userId].server,
-          candidate: JSON.stringify(candidate)
-        })
-      });
-      thisVal.conns[userId].localICECandidates = [];
-    }
+    // onOffer(userId, offer, thisVal) {
+    //   const socket = thisVal.sockets[thisVal.primaryServer];
+    //   console.log(userId);
+    //   console.log(thisVal.conns);
+    //   const peerConnection = thisVal.conns[userId].peerConnection;
+    //   var rtcOffer = new RTCSessionDescription(JSON.parse(offer));
+    //   peerConnection.setRemoteDescription(rtcOffer);
+    //   console.log("TIME TO ADD CANDIDATES IN ONOFFER");
+    //   thisVal.conns[userId].localICECandidates.forEach((candidate) => {        
+    //     socket.emit("candidate", {
+    //       userId: thisVal.user.id,
+    //       socketId: thisVal.conns[userId].socket,
+    //       server: thisVal.conns[userId].server,
+    //       candidate: JSON.stringify(candidate)
+    //     })
+    //   });
+    //   thisVal.conns[userId].localICECandidates = [];
+    // }
   
     call(userId, myStream, cb){
       this.onCallAnswered = function(stream){
