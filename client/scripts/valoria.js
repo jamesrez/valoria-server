@@ -282,7 +282,19 @@
           console.log("FOUND USER CONNECTION");
           console.log(d)
           if(this.conns[d.userId] && this.conns[d.userId].peerConnection){
-
+            if(d.streaming){
+              navigator.mediaDevices
+              .getUserMedia({
+                video: true,
+                audio: true,
+              })
+              .then((stream) => {
+                this.localStream = stream;
+                this.localStream.getTracks().forEach(function (track) {
+                  this.conns[d.userId].peerConnection.addTrack(track, this.localStream);
+                });
+              })
+            }
           }else{
             this.conns[d.userId] = {
               connected: false,
@@ -296,7 +308,6 @@
               server: d.server
             };
           }
-          
           if(d.streaming){
             navigator.mediaDevices
             .getUserMedia({
@@ -835,7 +846,9 @@
       .then((stream) => {
         this.localStream = stream;
         if(this.conns[d.userId] && this.conns[d.userId].peerConnection){
-
+          this.localStream.getTracks().forEach(function (track) {
+            this.conns[d.userId].peerConnection.addTrack(track, this.localStream);
+          });
         }else{
           this.conns[d.userId] = {
             userId: d.userId,
@@ -845,8 +858,8 @@
             localICECandidates: [],
             incomingCandidates: []
           }
+          this.sockets[this.primaryServer].emit("join", d.userId, d.socket, this.user.id);
         }
-        this.sockets[this.primaryServer].emit("join", d.userId, d.socket, this.user.id);
       })
     }
   
