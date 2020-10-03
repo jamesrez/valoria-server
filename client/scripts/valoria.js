@@ -281,7 +281,9 @@
         if(d.initiated){
           console.log("FOUND USER CONNECTION");
           console.log(d)
-          if(!this.conns[d.userId]){
+          if(this.conns[d.userId] && this.conns[d.userId].peerConnection){
+
+          }else{
             this.conns[d.userId] = {
               connected: false,
               userId: d.userId,
@@ -294,6 +296,7 @@
               server: d.server
             };
           }
+          
           if(d.streaming){
             navigator.mediaDevices
             .getUserMedia({
@@ -323,7 +326,9 @@
         }else{
           console.log("FOUND USER CONNECTION");
           console.log(d)
-          if(!this.conns[d.userId]){
+          if(this.conns[d.userId] && this.conns[d.userId].peerConnection){
+
+          }else{
             this.conns[d.userId] = {
               userId: d.userId,
               username: d.username,
@@ -829,7 +834,9 @@
       })
       .then((stream) => {
         this.localStream = stream;
-        if(!this.conns[d.userId]){
+        if(this.conns[d.userId] && this.conns[d.userId].peerConnection){
+
+        }else{
           this.conns[d.userId] = {
             userId: d.userId,
             username: d.username,
