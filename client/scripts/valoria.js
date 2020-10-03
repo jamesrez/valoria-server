@@ -627,7 +627,7 @@
         })
         thisVal.conns[userId].incomingCandidates = [];
       }
-      thisVal.conns[userId].peerConnection.ontrack = (event) => {
+      thisVal.conns[userId].peerConnection.onaddstream = (event) => {
         console.log("GOT A STREAM FROM REMOTE");
         thisVal.onCallAnswered(event.streams[0])
         thisVal.conns[userId].remoteStream = event.streams[0];

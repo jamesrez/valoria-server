@@ -1057,6 +1057,8 @@ function startServer(){
   
     // Relay answers
     socket.on("answer", function (d) {
+      console.log("ANSWER");
+      console.log(d);
       if(d.server === thisUrl && data.online[d.socketId]){
         io.to(d.socketId).emit('answer', d.fromUserId, d.answer);
       } else {
