@@ -348,9 +348,7 @@
         this.onAnswer(userId, answer, this);
       });
       socket.on("ready", (userId) => {
-        if(!this.conns[userId].initiated){
-          socket.emit("iceServers", userId);
-        }
+        socket.emit("iceServers", userId);
       });
       socket.on("iceServers", (userId, servers) => {
         if(!this.conns[userId].initiated){
