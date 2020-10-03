@@ -700,6 +700,7 @@
       event = JSON.parse(event);
       let rtcCandidate = new RTCIceCandidate(event);
       thisVal.conns[userId].peerConnection.addIceCandidate(rtcCandidate);
+      const socket = thisVal.sockets[thisVal.primaryServer];
       thisVal.conns[userId].localICECandidates.forEach((candidate) => {        
         socket.emit("candidate", {
           userId: thisVal.user.id,
