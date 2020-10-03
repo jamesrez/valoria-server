@@ -746,6 +746,7 @@
       peerConnection.createAnswer().then((answer) => {
         peerConnection.setLocalDescription(answer);
         console.log("CREATING ANSWER");
+        console.log(thisVal.conns[userId].server);
         socket.emit("answer", {
           fromUserId: thisVal.user.id,
           toUserId: userId,
