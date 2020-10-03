@@ -281,17 +281,19 @@
         if(d.initiated){
           console.log("FOUND USER CONNECTION");
           console.log(d)
-          this.conns[d.userId] = {
-            connected: false,
-            userId: d.userId,
-            username: d.username,
-            socket: d.socket,
-            initiated: true,
-            localICECandidates: [],
-            incomingCandidates: [],
-            dataPath: d.dataPath,
-            server: d.server
-          };
+          if(!this.conns[d.userId]){
+            this.conns[d.userId] = {
+              connected: false,
+              userId: d.userId,
+              username: d.username,
+              socket: d.socket,
+              initiated: true,
+              localICECandidates: [],
+              incomingCandidates: [],
+              dataPath: d.dataPath,
+              server: d.server
+            };
+          }
           if(d.streaming){
             navigator.mediaDevices
             .getUserMedia({
@@ -321,14 +323,16 @@
         }else{
           console.log("FOUND USER CONNECTION");
           console.log(d)
-          this.conns[d.userId] = {
-            userId: d.userId,
-            username: d.username,
-            socket: d.socket,
-            connected: false,
-            localICECandidates: [],
-            incomingCandidates: [],
-            server: d.server
+          if(!this.conns[d.userId]){
+            this.conns[d.userId] = {
+              userId: d.userId,
+              username: d.username,
+              socket: d.socket,
+              connected: false,
+              localICECandidates: [],
+              incomingCandidates: [],
+              server: d.server
+            }
           }
           console.log(d.socket)
           socket.emit("join p2p connection", {
@@ -825,13 +829,15 @@
       })
       .then((stream) => {
         this.localStream = stream;
-        this.conns[d.userId] = {
-          userId: d.userId,
-          username: d.username,
-          socket: d.socket,
-          connected: false,
-          localICECandidates: [],
-          incomingCandidates: []
+        if(!this.conns[d.userId]){
+          this.conns[d.userId] = {
+            userId: d.userId,
+            username: d.username,
+            socket: d.socket,
+            connected: false,
+            localICECandidates: [],
+            incomingCandidates: []
+          }
         }
         this.sockets[this.primaryServer].emit("join", d.userId, d.socket, this.user.id);
       })
