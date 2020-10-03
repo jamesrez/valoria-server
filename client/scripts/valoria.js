@@ -292,6 +292,8 @@
               .then((stream) => {
                 this.localStream = stream;
                 this.localStream.getTracks().forEach(function (track) {
+                  console.log("ADDING TRACK");
+                  console.log(track);
                   thisVal.conns[d.userId].peerConnection.addTrack(track, thisVal.localStream);
                 });
               })
@@ -750,6 +752,9 @@
           });
         },
         function (err) {
+        }, {
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: true
         }
       );
     }
@@ -773,6 +778,9 @@
         },
         function (err) {
           console.log(err);
+        },{
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: true
         }
       );
     }
@@ -849,6 +857,8 @@
         const thisVal = this;
         if(this.conns[d.userId] && this.conns[d.userId].peerConnection){
           this.localStream.getTracks().forEach(function (track) {
+            console.log("ADDING TRACK");
+            console.log(track);
             thisVal.conns[d.userId].peerConnection.addTrack(track, thisVal.localStream);
           });
         }else{
