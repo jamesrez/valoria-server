@@ -669,6 +669,7 @@
         }
       }
       thisVal.conns[userId].peerConnection.ontrack = (event) => {
+        console.log("GOT A STREAM FROM REMOTE");
         thisVal.onCallAnswered(event.streams[0])
         thisVal.conns[userId].remoteStream = event.streams[0];
         thisVal.conns[userId].connected = true;
@@ -696,16 +697,6 @@
       event = JSON.parse(event);
       let rtcCandidate = new RTCIceCandidate(event);
       thisVal.conns[userId].peerConnection.addIceCandidate(rtcCandidate);
-      const socket = thisVal.sockets[thisVal.primaryServer];
-      thisVal.conns[userId].localICECandidates.forEach((candidate) => {        
-        socket.emit("candidate", {
-          userId: thisVal.user.id,
-          socketId: thisVal.conns[userId].socket,
-          server: thisVal.conns[userId].server,
-          candidate: JSON.stringify(candidate)
-        })
-      });
-      thisVal.conns[userId].localICECandidates = [];
     }
   
     createOffer(thisVal, userId){
