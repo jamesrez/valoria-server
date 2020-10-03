@@ -341,7 +341,7 @@
       socket.on("offer", (userId, offer) => {
         console.log("GOTTA OFFER");
         this.conns[userId].offer = offer;
-        this.onOffer(user, offer, this);
+        this.onOffer(userId, offer, this);
         socket.emit("iceServers", userId);
       });
       socket.on("answer", (userId, answer) => {
