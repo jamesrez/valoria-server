@@ -599,9 +599,11 @@
       const socket = this.sockets[this.primaryServer];
       const thisVal = this;
       const userSocket = this.conns[userId].socket;
-      thisVal.conns[userId].peerConnection = new RTCPeerConnection({
-        iceServers: turn.iceServers,
-      });
+      if(!thisVal.conns[userId].peerConnection){
+        thisVal.conns[userId].peerConnection = new RTCPeerConnection({
+          iceServers: turn.iceServers,
+        });
+      }
       if(thisVal.localStream){
         thisVal.localStream.getTracks().forEach(function (track) {
           thisVal.conns[userId].peerConnection.addTrack(track, thisVal.localStream);
@@ -758,6 +760,7 @@
       const socket = thisVal.sockets[thisVal.primaryServer];
       const peerConnection = thisVal.conns[userId].peerConnection;
       var rtcAnswer = new RTCSessionDescription(JSON.parse(answer));
+      console.log(rtcAnswer)
       peerConnection.setRemoteDescription(rtcAnswer);
       console.log("TIME TO ADD CANDIDATES IN ONANSWER");
       thisVal.conns[userId].localICECandidates.forEach((candidate) => {        
