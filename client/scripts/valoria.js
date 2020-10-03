@@ -700,6 +700,15 @@
       event = JSON.parse(event);
       let rtcCandidate = new RTCIceCandidate(event);
       thisVal.conns[userId].peerConnection.addIceCandidate(rtcCandidate);
+      thisVal.conns[userId].localICECandidates.forEach((candidate) => {        
+        socket.emit("candidate", {
+          userId: thisVal.user.id,
+          socketId: thisVal.conns[userId].socket,
+          server: thisVal.conns[userId].server,
+          candidate: JSON.stringify(candidate)
+        })
+      });
+      thisVal.conns[userId].localICECandidates = [];
     }
   
     createOffer(thisVal, userId){
@@ -738,15 +747,6 @@
             server: thisVal.conns[userId].server,
             answer: JSON.stringify(answer)
           });
-          thisVal.conns[userId].localICECandidates.forEach((candidate) => {        
-            socket.emit("candidate", {
-              userId: thisVal.user.id,
-              socketId: thisVal.conns[userId].socket,
-              server: thisVal.conns[userId].server,
-              candidate: JSON.stringify(candidate)
-            })
-          });
-          thisVal.conns[userId].localICECandidates = [];
         },
         function (err) {
           console.log(err);
