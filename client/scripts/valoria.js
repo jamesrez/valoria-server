@@ -288,6 +288,7 @@
             socket: d.socket,
             initiated: true,
             localICECandidates: [],
+            incomingCandidates: [],
             dataPath: d.dataPath,
             server: d.server
           };
@@ -326,6 +327,7 @@
             socket: d.socket,
             connected: false,
             localICECandidates: [],
+            incomingCandidates: [],
             server: d.server
           }
           console.log(d.socket)
@@ -359,6 +361,7 @@
           this.onIceServers(userId, servers, this.createOffer);
         }
       });
+
       socket.on("newCandidate", (userId, candidate) => {
         console.log("GOTTA NEWCANDIDATE");
         this.onCandidate(userId, candidate, this)
@@ -696,7 +699,13 @@
     onCandidate(userId, event, thisVal) {
       event = JSON.parse(event);
       let rtcCandidate = new RTCIceCandidate(event);
-      thisVal.conns[userId].peerConnection.addIceCandidate(rtcCandidate);
+      thisVal.conns[userId].newCandidates.push(rtcCandidate);
+      if(thisVal.conns[userId].peerConnection){
+        thisVal.conns[userId].newCandidates.forEach((c) => {
+          thisVal.conns[userId].peerConnection.addIceCandidate(c);
+        })
+        thisVal.conns[userId].newCandidates = [];
+      }
     }
   
     createOffer(thisVal, userId){
@@ -815,7 +824,8 @@
           username: d.username,
           socket: d.socket,
           connected: false,
-          localICECandidates: []
+          localICECandidates: [],
+          incomingCandidates: []
         }
         this.sockets[this.primaryServer].emit("join", d.userId, d.socket, this.user.id);
       })
