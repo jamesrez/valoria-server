@@ -836,7 +836,8 @@
           socket: d.socket,
           connected: false,
           localICECandidates: [],
-          incomingCandidates: []
+          incomingCandidates: [],
+          server: d.server
         }
         this.sockets[this.primaryServer].emit("join", d.userId, d.socket, this.user.id);
       })
