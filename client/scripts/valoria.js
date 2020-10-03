@@ -699,12 +699,12 @@
     onCandidate(userId, event, thisVal) {
       event = JSON.parse(event);
       let rtcCandidate = new RTCIceCandidate(event);
-      thisVal.conns[userId].newCandidates.push(rtcCandidate);
+      thisVal.conns[userId].incomingCandidates.push(rtcCandidate);
       if(thisVal.conns[userId].peerConnection){
-        thisVal.conns[userId].newCandidates.forEach((c) => {
+        thisVal.conns[userId].incomingCandidates.forEach((c) => {
           thisVal.conns[userId].peerConnection.addIceCandidate(c);
         })
-        thisVal.conns[userId].newCandidates = [];
+        thisVal.conns[userId].incomingCandidates = [];
       }
     }
   
