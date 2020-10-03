@@ -341,6 +341,7 @@
       socket.on("offer", (userId, offer) => {
         console.log("GOTTA OFFER");
         this.conns[userId].offer = offer;
+        this.onOffer(user, offer, this);
         socket.emit("iceServers", userId);
       });
       socket.on("answer", (userId, answer) => {
@@ -352,9 +353,6 @@
         socket.emit("iceServers", userId);
       });
       socket.on("iceServers", (userId, servers) => {
-        console.log("GOT SERVERS");
-        console.log(userId);
-        console.log(servers);
         if(!this.conns[userId].initiated){
           if(!this.conns[userId].peerConnection && this.conns[userId].offer){
             this.onIceServers(userId, servers, this.createAnswer);
@@ -754,6 +752,23 @@
       var rtcAnswer = new RTCSessionDescription(JSON.parse(answer));
       peerConnection.setRemoteDescription(rtcAnswer);
       console.log("TIME TO ADD CANDIDATES IN ONANSWER");
+      thisVal.conns[userId].localICECandidates.forEach((candidate) => {        
+        socket.emit("candidate", {
+          userId: thisVal.user.id,
+          socketId: thisVal.conns[userId].socket,
+          server: thisVal.conns[userId].server,
+          candidate: JSON.stringify(candidate)
+        })
+      });
+      thisVal.conns[userId].localICECandidates = [];
+    }
+
+    onOffer(userId, offer, thisVal) {
+      const socket = thisVal.sockets[thisVal.primaryServer];
+      const peerConnection = thisVal.conns[userId].peerConnection;
+      var rtcOffer = new RTCSessionDescription(JSON.parse(offer));
+      peerConnection.setRemoteDescription(rtcOffer);
+      console.log("TIME TO ADD CANDIDATES IN ONOFFER");
       thisVal.conns[userId].localICECandidates.forEach((candidate) => {        
         socket.emit("candidate", {
           userId: thisVal.user.id,
