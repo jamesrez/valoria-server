@@ -629,8 +629,9 @@
       }
       thisVal.conns[userId].peerConnection.onaddstream = (event) => {
         console.log("GOT A STREAM FROM REMOTE");
-        thisVal.onCallAnswered(event.streams[0])
-        thisVal.conns[userId].remoteStream = event.streams[0];
+        console.log(event);
+        thisVal.onCallAnswered(event.stream)
+        thisVal.conns[userId].remoteStream = event.stream;
         thisVal.conns[userId].connected = true;
       }
   
