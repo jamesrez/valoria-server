@@ -279,8 +279,6 @@
     async setupPrimaryConnections(socket) {
       socket.on('Getting Connection', (d) => {
         if(d.initiated){
-          console.log("FOUND USER CONNECTION");
-          console.log(d)
           const thisVal = this;
           this.conns[d.userId] = {
             connected: false,
@@ -311,7 +309,6 @@
               })
             })
           }else{
-            console.log(d.socket)
             socket.emit("join p2p connection", {
               toUserId: d.userId,
               toUserSocket: d.socket,
@@ -322,8 +319,6 @@
         }else if(d.streaming){
           this.onCallIncoming(d);
         }else{
-          console.log("FOUND USER CONNECTION");
-          console.log(d)
           if(this.conns[d.userId] && this.conns[d.userId].peerConnection){
             
           }else{
@@ -337,7 +332,6 @@
               server: d.server
             }
           }
-          console.log(d.socket)
           socket.emit("join p2p connection", {
             toUserId: d.userId,
             toUserSocket: d.socket,
@@ -348,12 +342,10 @@
       });
   
       socket.on("offer", (userId, offer) => {
-        console.log("GOTTA OFFER");
         this.conns[userId].offer = offer;
         socket.emit("iceServers", userId);
       });
       socket.on("answer", (userId, answer) => {
-        console.log("GOTTA ANSWER");
         this.onAnswer(userId, answer, this);
       });
       socket.on("ready", (userId) => {
@@ -370,7 +362,6 @@
       });
 
       socket.on("newCandidate", (userId, candidate) => {
-        console.log("GOTTA NEWCANDIDATE");
         this.onCandidate(userId, candidate, this)
       });
 
@@ -438,8 +429,6 @@
               if(d.err) console.log(d.err);
               if(!d.user) return;
               if(d.authKey) {
-                console.log("GOT AUTH KEY");
-                console.log(d.authKey);
                 this.login(d.user, password, d.authKey, cb)
               }
             });  
@@ -518,7 +507,6 @@
       const allPeers = this.onlinePeers;
       socket.emit("Get Peers in Dimension", dimension);
       socket.on("Get Peers in Dimension", (peers) => {
-        console.log(peers);
         Object.keys(peers).forEach((socketId) => {
           allPeers[peers[socketId].userId] = peers[socketId];
         })
@@ -551,8 +539,6 @@
       }else{
         socket.emit('Get User', userId);
         thisVal.onUser[userId] = (user) => {
-          console.log("GOT USER");
-          console.log(user);
           thisVal.users[user.id] = new ValoriaUser({
             username: user.username,
             id: user.id,
@@ -613,7 +599,6 @@
       thisVal.conns[userId].peerConnection.valoria = thisVal;
       thisVal.conns[userId].peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
-          console.log("GOTTA SEND A CANDIDATE");
           socket.emit(
             "candidate",
             {
@@ -630,8 +615,6 @@
         thisVal.conns[userId].incomingCandidates = [];
       }
       thisVal.conns[userId].peerConnection.onaddstream = (event) => {
-        console.log("GOT A STREAM FROM REMOTE");
-        console.log(event);
         thisVal.onCallAnswered(event.stream)
         thisVal.conns[userId].remoteStream = event.stream;
         thisVal.conns[userId].connected = true;
@@ -651,20 +634,15 @@
       };
 
       if(thisVal.localStream){
-        console.log("ADDED STREAM TO NEW PEER CONNECTION")
         thisVal.conns[userId].peerConnection.addStream(thisVal.localStream);
-        // thisVal.localStream.getTracks().forEach(function (track) {
-        //   thisVal.conns[userId].peerConnection.addTrack(track, thisVal.localStream);
-        // });
       }
-      console.log("IN ONICESERVERs")
       let dataChannel = thisVal.conns[userId].peerConnection.createDataChannel("valoria-data", {
         negotiated: true,
         // both peers must have same id
         id: 0,
       });
       dataChannel.onopen = function (event) {
-        console.log("dataChannel opened");
+        console.log("P2P Data Channel opened");
         thisVal.conns[userId].dataChannel = dataChannel;
         if(thisVal.datas[thisVal.conns[userId].dataPath]){
           thisVal.datas[thisVal.conns[userId].dataPath].onPeerConnected(thisVal.conns[userId]);
@@ -705,7 +683,6 @@
         }
       };
   
-      console.log("GOTTA CALLBACK")
       if(callback && typeof callback === 'function'){
         callback(thisVal, userId);
       }
@@ -728,7 +705,6 @@
       const peerConnection = thisVal.conns[userId].peerConnection;
       peerConnection.createOffer().then((offer) => {
         peerConnection.setLocalDescription(offer);
-        console.log("CREATING OFFER");
         socket.emit("offer", {
           fromUserId: thisVal.user.id,
           toUserId: userId,
@@ -748,8 +724,6 @@
       peerConnection.setRemoteDescription(rtcOffer);
       peerConnection.createAnswer().then((answer) => {
         peerConnection.setLocalDescription(answer);
-        console.log("CREATING ANSWER");
-        console.log(thisVal.conns[userId].server);
         socket.emit("answer", {
           fromUserId: thisVal.user.id,
           toUserId: userId,
@@ -766,9 +740,7 @@
       const socket = thisVal.sockets[thisVal.primaryServer];
       const peerConnection = thisVal.conns[userId].peerConnection;
       var rtcAnswer = new RTCSessionDescription(JSON.parse(answer));
-      console.log(rtcAnswer)
       peerConnection.setRemoteDescription(rtcAnswer);
-      console.log("TIME TO ADD CANDIDATES IN ONANSWER");
       thisVal.conns[userId].localICECandidates.forEach((candidate) => {        
         socket.emit("candidate", {
           userId: thisVal.user.id,
@@ -779,25 +751,6 @@
       });
       thisVal.conns[userId].localICECandidates = [];
     }
-
-    // onOffer(userId, offer, thisVal) {
-    //   const socket = thisVal.sockets[thisVal.primaryServer];
-    //   console.log(userId);
-    //   console.log(thisVal.conns);
-    //   const peerConnection = thisVal.conns[userId].peerConnection;
-    //   var rtcOffer = new RTCSessionDescription(JSON.parse(offer));
-    //   peerConnection.setRemoteDescription(rtcOffer);
-    //   console.log("TIME TO ADD CANDIDATES IN ONOFFER");
-    //   thisVal.conns[userId].localICECandidates.forEach((candidate) => {        
-    //     socket.emit("candidate", {
-    //       userId: thisVal.user.id,
-    //       socketId: thisVal.conns[userId].socket,
-    //       server: thisVal.conns[userId].server,
-    //       candidate: JSON.stringify(candidate)
-    //     })
-    //   });
-    //   thisVal.conns[userId].localICECandidates = [];
-    // }
   
     call(userId, myStream, cb){
       this.onCallAnswered = function(stream){
@@ -983,6 +936,10 @@
         }
         uniquePath += "." + pathArr[i];
       }
+
+      console.log("SAVING TO LOCAL STORAGE");
+      console.log(`user.${this.user.id}${this.path}`);
+      console.log(value);
       localforage.setItem(`user.${this.user.id}${this.path}`, value);
 
       this.user.valoria.sockets[this.user.valoria.primaryServer].emit("Save User Data", {
@@ -1078,7 +1035,6 @@
             keyOwner: opts.encrypt.userId,
             keyPath: opts.encrypt.path
           })
-          console.log("TIME TO SAVE: " + this.value);
           this.saveDataToPath(this.value); 
         })
       }else{
@@ -1200,10 +1156,7 @@
           }
         }
         
-        console.log("DECLARING DATA ONNEW");
         thisD.onNew = async (d) => {
-          console.log("IN DATA ONNEW FUNCTION");
-          console.log(d);
           if(!d || thisD.value === d) return;
           if(typeof d === 'string' && d.startsWith('VALENCRYPTED')){
             decrypt(d, (dec) => {
@@ -1224,7 +1177,6 @@
         };
 
         function callback(d){
-          console.log(d)
           thisD.value = d;
           if(cb && typeof cb === 'function'){
             cb(d);
@@ -1232,9 +1184,6 @@
         }
   
         //ATTEMPT TO ASK USER THROUGH PEER TO PEER CONNECTION
-        console.log("WE GOTTA CONNECT PEER TO PEER");
-        console.log(thisD)
-        console.log(thisVal.user.id);
         if(thisD.user.id !== thisVal.user.id){
           if(thisVal.conns[thisD.user.id] && thisVal.conns[thisD.user.id].dataChannel){
             console.log("ALREADY HAVE P2P CONNECTION");
@@ -1245,7 +1194,6 @@
             }
             thisVal.conns[thisD.user.id].dataChannel.send(JSON.stringify(data));
           }else{
-            console.log("GOTTA CONNECT TO USER");
             thisVal.sockets[thisVal.primaryServer].emit('Connect to User', {
               toUserId: thisD.user.id,
               userId: thisVal.user.id,
@@ -1271,7 +1219,6 @@
         //ASK VALORIA SERVER <-- SHOULD ONLY DO THIS IF CANT ESTABLISH P2P CONNECTION
         // thisVal.sockets[thisVal.primaryServer].emit("Get User Data", {username: thisD.user.username, userId: thisD.user.id, path: thisD.path});
       })
-      console.log("WENT THROUGH ON");
     }
 
     async getEncryptionKey(cb){
@@ -1361,11 +1308,7 @@
           };
     
           //ATTEMPT TO ASK USER THROUGH PEER TO PEER CONNECTION
-          console.log("WE GOTTA CONNECT PEER TO PEER");
-          console.log(thisD.user.id);
-          console.log(thisVal.user.id);
           if(thisD.user.id !== thisVal.user.id){
-            console.log(thisVal.conns);
             if(thisVal.conns[thisD.user.id] && thisVal.conns[thisD.user.id].dataChannel){
               const data = {
                 type: 'getKey',
@@ -1375,7 +1318,6 @@
               }
               thisVal.conns[thisD.user.id].dataChannel.send(JSON.stringify(data));
             }else{
-              console.log("CONNECT PEER TO PEER")
               thisVal.sockets[thisVal.primaryServer].emit('Connect to User', {
                 toUserId: thisD.user.id,
                 userId: thisVal.user.id,
