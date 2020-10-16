@@ -124,7 +124,6 @@
     );
   }
   
-  
   async function wrapCryptoKeyKW(keyToWrap, salt, keyMaterial, cb) {
     if(!cb) return;
     const wrappingKey = await getKeyKW(keyMaterial, salt);
@@ -256,6 +255,7 @@
       this.peerConnection;
       this.callId;
       this.signalServer = null;
+      this.localforage = localforage || null;
 
       if(opts.server) {
         this.primaryServer = opts.server;
@@ -277,9 +277,10 @@
     }
 
     async setupPrimaryConnections(socket) {
+      const thisVal = this;
       socket.on('Getting Connection', (d) => {
         if(d.initiated){
-          const thisVal = this;
+          delete this.conns[d.userId];
           this.conns[d.userId] = {
             connected: false,
             userId: d.userId,
@@ -322,6 +323,7 @@
           if(this.conns[d.userId] && this.conns[d.userId].peerConnection){
             
           }else{
+            delete this.conns[d.userId];
             this.conns[d.userId] = {
               userId: d.userId,
               username: d.username,
@@ -342,19 +344,27 @@
       });
   
       socket.on("offer", (userId, offer) => {
-        this.conns[userId].offer = offer;
+        // console.log("GOT OFFER");
+        thisVal.conns[userId].offer = offer;
         socket.emit("iceServers", userId);
       });
       socket.on("answer", (userId, answer) => {
+        // console.log("GOT ANSWER");
         this.onAnswer(userId, answer, this);
       });
       socket.on("ready", (userId) => {
         socket.emit("iceServers", userId);
       });
       socket.on("iceServers", (userId, servers) => {
+        // console.log(this.conns[userId]);
         if(!this.conns[userId].initiated){
-          if(!this.conns[userId].peerConnection && this.conns[userId].offer){
-            this.onIceServers(userId, servers, this.createAnswer);
+          if(this.conns[userId].offer){
+            if(!this.conns[userId].peerConnection || (
+              this.conns[userId].peerConnection?.remoteDescription?.sdp !== (JSON.parse(this.conns[userId].offer))?.sdp)
+            ){
+              // console.log("LOADING ICE SERVERS THEN ANSWER");
+              this.onIceServers(userId, servers, this.createAnswer);
+            }
           }
         }else{
           this.onIceServers(userId, servers, this.createOffer);
@@ -370,8 +380,9 @@
           console.log(d.err);
           return;
         }
-        if(!this.onUser[d.user.id]) return;
-        this.onUser[d.user.id](d.user);
+        if(!this.onUser[d.user.id] || this.onUser[d.user.id].length < 1) return;
+        this.onUser[d.user.id][0](d.user);
+        this.onUser[d.user.id].splice(0, 1);
       });
 
     }
@@ -538,7 +549,8 @@
         cb(thisVal.users[userId]);
       }else{
         socket.emit('Get User', userId);
-        thisVal.onUser[userId] = (user) => {
+        if(!thisVal.onUser[userId]) thisVal.onUser[userId] = [];
+        thisVal.onUser[userId].push(async (user) => {
           thisVal.users[user.id] = new ValoriaUser({
             username: user.username,
             id: user.id,
@@ -549,11 +561,11 @@
             valoria: this,
             server: user.server
           });
-          localforage.setItem(`user.${user.id}`, user);
+          await localforage.setItem(`${user.id}`, user);
           if(user && cb && typeof cb === 'function') {
             cb(thisVal.users[user.id]);
           } 
-        }
+        });
       }
     }
 
@@ -598,21 +610,27 @@
 
       thisVal.conns[userId].peerConnection.valoria = thisVal;
       thisVal.conns[userId].peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.emit(
-            "candidate",
-            {
-              userId: thisVal.user.id,
-              socketId: userSocket,
-              candidate: JSON.stringify(event.candidate),
-              server: thisVal.conns[userId].server,
+        if(thisVal.conns[userId].peerConnection){
+          if (event.candidate && !thisVal.conns[userId].dataChannel) {
+            socket.emit(
+              "candidate",
+              {
+                userId: thisVal.user.id,
+                socketId: userSocket,
+                candidate: JSON.stringify(event.candidate),
+                server: thisVal.conns[userId].server,
+              }
+            );
+          }
+          thisVal.conns[userId].incomingCandidates.forEach((c) => {
+            try {
+              thisVal.conns[userId].peerConnection.addIceCandidate(c);
+            } catch (e) {
+              console.log(e);
             }
-          );
+          })
+          thisVal.conns[userId].incomingCandidates = [];
         }
-        thisVal.conns[userId].incomingCandidates.forEach((c) => {
-          thisVal.conns[userId].peerConnection.addIceCandidate(c);
-        })
-        thisVal.conns[userId].incomingCandidates = [];
       }
       thisVal.conns[userId].peerConnection.onaddstream = (event) => {
         thisVal.onCallAnswered(event.stream)
@@ -653,7 +671,7 @@
         if(data.type === 'on' && data.path){
           if(!thisVal.ons[data.path]) thisVal.ons[data.path] = {};
           thisVal.ons[data.path][data.userId] = thisVal.conns[userId];
-          localforage.getItem(`user.${data.path}`).then((d) => {
+          localforage.getItem(`${data.path}`).then((d) => {
             const data2Send = {
               type: "onAnswer",
               path: data.path,
@@ -693,11 +711,16 @@
       let rtcCandidate = new RTCIceCandidate(event);
       thisVal.conns[userId].incomingCandidates.push(rtcCandidate);
       if(thisVal.conns[userId].peerConnection){
-        thisVal.conns[userId].incomingCandidates.forEach((c) => {
-          thisVal.conns[userId].peerConnection.addIceCandidate(c);
-        })
-        thisVal.conns[userId].incomingCandidates = [];
+        thisVal.conns[userId].peerConnection.addIceCandidate(rtcCandidate);
       }
+        // thisVal.conns[userId].incomingCandidates.forEach((c) => {
+        //   try {
+        //     thisVal.conns[userId].peerConnection.addIceCandidate(c);
+        //   } catch (e) {
+        //     console.log(e);
+        //   }
+        // })
+        // thisVal.conns[userId].incomingCandidates = [];
     }
   
     createOffer(thisVal, userId){
@@ -717,10 +740,10 @@
       })
     }
   
-    createAnswer(thisVal, userId) {
+    async createAnswer(thisVal, userId) {
       const peerConnection = thisVal.conns[userId].peerConnection;
       const socket = thisVal.sockets[thisVal.primaryServer];
-      let rtcOffer = new RTCSessionDescription(JSON.parse(thisVal.conns[userId].offer));
+      const rtcOffer = new RTCSessionDescription(JSON.parse(thisVal.conns[userId].offer));
       peerConnection.setRemoteDescription(rtcOffer);
       peerConnection.createAnswer().then((answer) => {
         peerConnection.setLocalDescription(answer);
@@ -741,6 +764,7 @@
       const peerConnection = thisVal.conns[userId].peerConnection;
       var rtcAnswer = new RTCSessionDescription(JSON.parse(answer));
       peerConnection.setRemoteDescription(rtcAnswer);
+      console.log(peerConnection);
       thisVal.conns[userId].localICECandidates.forEach((candidate) => {        
         socket.emit("candidate", {
           userId: thisVal.user.id,
@@ -787,6 +811,7 @@
       .then((stream) => {
         this.localStream = stream;
         const thisVal = this;
+        delete this.conns[d.userId];
         this.conns[d.userId] = {
           userId: d.userId,
           username: d.username,
@@ -870,13 +895,14 @@
       return this.user.valoria.datas[uniquePath];
     }
   
-    saveDataToPath(value){
+    async saveDataToPath(value){
       let data = this.user.data;
       let path = this.path;
       let uniquePath = this.user.id;
       const thisVal = this.user.valoria;
       for (var i=0, pathArr=path.substr(1).split('.'), len=pathArr.length; i<len; i++){
         if(i === len - 1){
+          this.user
           data[pathArr[i]] = value;
           if(thisVal.datas[uniquePath] && typeof thisVal.datas[uniquePath].onNew === 'function'){
             thisVal.datas[uniquePath].onNew(data);
@@ -892,6 +918,9 @@
               this.user.valoria.conns[connId].dataChannel.send(JSON.stringify(data2Send));
             })
           }
+          console.log(uniquePath);
+          console.log(data);
+          await localforage.setItem(uniquePath, data);
         }else{
           data[pathArr[i]] = data[pathArr[i]] || {};
           if(data && typeof data === 'object'){
@@ -916,6 +945,7 @@
                 this.user.valoria.conns[connId].dataChannel.send(JSON.stringify(data2Send));
               })
             }
+            await localforage.setItem(uniquePath, data2SendValue);
           }else{
             if(thisVal.datas[uniquePath] && typeof thisVal.datas[uniquePath].onNew === 'function'){
               thisVal.datas[uniquePath].onNew(data);
@@ -931,23 +961,21 @@
                 this.user.valoria.conns[connId].dataChannel.send(JSON.stringify(data2Send));
               })
             }
+            await localforage.setItem(uniquePath, data);
           }
           data = data[pathArr[i]];
         }
         uniquePath += "." + pathArr[i];
       }
 
-      console.log("SAVING TO LOCAL STORAGE");
-      console.log(`user.${this.user.id}${this.path}`);
-      console.log(value);
-      localforage.setItem(`user.${this.user.id}${this.path}`, value);
+      await localforage.setItem(`${this.user.id}${this.path}`, value);
 
-      this.user.valoria.sockets[this.user.valoria.primaryServer].emit("Save User Data", {
-        data: value,
-        path: this.path,
-        userId: this.user.id,
-        username: this.user.username
-      });
+      // this.user.valoria.sockets[this.user.valoria.primaryServer].emit("Save User Data", {
+      //   data: value,
+      //   path: this.path,
+      //   userId: this.user.id,
+      //   username: this.user.username
+      // });
 
     }
   
@@ -981,9 +1009,11 @@
           ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
         )
         //UNWRAP OUR PRIVATE KEY 
+        console.log(ourKey);
         base64ToArrayBuffer(JSON.parse(ourKey.privateKey).wrapped, async (ecdhPrivKeyBuffer) => {
+          console.log(ourEKey);
           const iv = Uint8Array.from(Object.values(JSON.parse(ourKey.privateKey).iv));
-          const privateKey = await crypto.subtle.unwrapKey(
+          crypto.subtle.unwrapKey(
             'jwk',
             ecdhPrivKeyBuffer,
             ourEKey,
@@ -997,45 +1027,49 @@
             },
             true,
             ["deriveKey", "deriveBits"]
-          );
-
-          //DERIVE THE ENCRYPTION KEY TO ENCRYPT / DECRYPT THE DATA
-          const dataEncryptionKey = await crypto.subtle.deriveKey(
-            {
-              name: 'ECDH',
-              public: publicKey
-            },
-            privateKey,
-            {
-              name: 'AES-GCM',
-              length: 256
-            },
-            true,
-            ["encrypt", "decrypt"]
-          );
-          //ENCRYPT THE DATA
-          let encoded;
-          if(typeof this.value === 'object'){
-            encoded = str2ab(JSON.stringify(this.value));
-          }else{
-            encoded = str2ab(this.value);
-          }
-          const dataIv = window.crypto.getRandomValues(new Uint8Array(12));
-          const abEncryptedValue = await crypto.subtle.encrypt(
-            {
-              name: 'AES-GCM', 
+          ).then(async (privateKey) => {
+            console.log("UNWRAPPED PRIVKEY");
+            console.log(privateKey)
+            //DERIVE THE ENCRYPTION KEY TO ENCRYPT / DECRYPT THE DATA
+            const dataEncryptionKey = await crypto.subtle.deriveKey(
+              {
+                name: 'ECDH',
+                public: publicKey
+              },
+              privateKey,
+              {
+                name: 'AES-GCM',
+                length: 256
+              },
+              true,
+              ["encrypt", "decrypt"]
+            );
+            //ENCRYPT THE DATA
+            let encoded;
+            if(typeof this.value === 'object'){
+              encoded = str2ab(JSON.stringify(this.value));
+            }else{
+              encoded = str2ab(this.value);
+            }
+            const dataIv = window.crypto.getRandomValues(new Uint8Array(12));
+            const abEncryptedValue = await crypto.subtle.encrypt(
+              {
+                name: 'AES-GCM', 
+                iv: dataIv,
+              },
+              dataEncryptionKey,
+              encoded
+            )
+            this.value = "VALENCRYPTED" + JSON.stringify({
+              data: ab2str(abEncryptedValue),
               iv: dataIv,
-            },
-            dataEncryptionKey,
-            encoded
-          )
-          this.value = "VALENCRYPTED" + JSON.stringify({
-            data: ab2str(abEncryptedValue),
-            iv: dataIv,
-            keyOwner: opts.encrypt.userId,
-            keyPath: opts.encrypt.path
-          })
-          this.saveDataToPath(this.value); 
+              keyOwner: opts.encrypt.userId,
+              keyPath: opts.encrypt.path
+            })
+            this.saveDataToPath(this.value); 
+          }).catch((e) => {
+            console.log(e);
+          });
         })
       }else{
         this.saveDataToPath(this.value);
@@ -1116,6 +1150,7 @@
                 true,
                 ["encrypt", "decrypt"]
               );
+              console.log(encrypted);
               const dataIv = Uint8Array.from(Object.values(encrypted.iv));
               //DECRYPT THE DATA 
               const decrypted = await crypto.subtle.decrypt(
@@ -1127,14 +1162,12 @@
                 str2ab(encrypted.data)
               );
               cb(ab2str(decrypted));
-              return;
             })
           })
         })
       }
 
-      localforage.getItem(`user.${this.user.id}${this.path}`).then(async (d) => {
-        
+      localforage.getItem(`${this.user.id}${this.path}`).then(async (d) => {
         if(d && cb && typeof cb === 'function'){
           if(typeof d === 'string' && d.startsWith('VALENCRYPTED')){
             decrypt(d, (dec) => {
@@ -1143,7 +1176,11 @@
           }else if(typeof d === 'object'){
             Object.keys(d).forEach(async (prop, i) => {
               if(typeof d[prop] === 'string' && d[prop].startsWith('VALENCRYPTED')){
+                console.log("GOTTA DECRYPT");
+                console.log(d[prop]);
                 decrypt(d[prop], (dec) => {
+                  console.log("Decrypted");
+                  console.log(dec);
                   thisD.decrypted[prop] = dec;
                   if(Object.keys(thisD.decrypted).length === Object.keys(d).length){
                     callback(thisD.decrypted);
@@ -1163,11 +1200,14 @@
               callback(dec)
             })
           }else if(typeof d === 'object'){
-            Object.keys(d).forEach(async (prop) => {
+            const length = Object.keys(d).length;
+            Object.keys(d).forEach(async (prop, i) => {
               if(typeof d[prop] === 'string' && d[prop].startsWith('VALENCRYPTED')){
                 decrypt(d[prop], (dec) => {
                   thisD.decrypted[prop] = dec;
-                  callback(thisD.decrypted);
+                  if(i === length - 1){
+                    callback(thisD.decrypted);
+                  }
                 });
               }
             })
@@ -1242,7 +1282,7 @@
           thisD.onKey = async (d) => {
             if(d && d.key){
               console.log("WE FOUND A KEY FOR " + this.user.id + this.path)
-              localforage.setItem(`keys.user.${this.user.id}${this.path}`, JSON.stringify(d.key));
+              await localforage.setItem(`keys.user.${this.user.id}${this.path}`, JSON.stringify(d.key));
               if(thisD.key === d.key) return;
               thisD.key = d.key;
               if(cb && typeof cb === 'function'){
@@ -1293,7 +1333,7 @@
   
               const thisKey = {userId : thisD.user.id, path: thisD.path, [thisVal.user.id] : key2Send};
               //SAVE KEY TO PATH
-              localforage.setItem(`keys.user.${thisD.user.id}${thisD.path}`, JSON.stringify(thisKey));
+              await localforage.setItem(`keys.user.${thisD.user.id}${thisD.path}`, JSON.stringify(thisKey));
               socket.emit("Save Key to Path", {
                 keyUser : thisVal.user.id,
                 userId : thisD.user.id,
@@ -1440,7 +1480,7 @@
           });
           key[user.id] = key2Share;
 
-          localforage.setItem(`keys.user.${this.user.id}${this.path}`, JSON.stringify(key));
+          await localforage.setItem(`keys.user.${this.user.id}${this.path}`, JSON.stringify(key));
           socket.emit("Save Key to Path", {
             keyUser : user.id,
             userId : thisD.user.id,

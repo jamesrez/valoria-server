@@ -150,9 +150,7 @@ async function connectToPeer(peer){
     function getMsgsOfUser(data, username){
       // data.getEncryptionKey((key) => {
       // })
-      console.log(data);
       data.on((msgTimes) => {
-        console.log(msgTimes);
         if(msgTimes && typeof msgTimes === 'object'){
           Object.keys(msgTimes).forEach((time) => {
             if(loaded[username + time]) return;

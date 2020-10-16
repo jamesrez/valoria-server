@@ -25,6 +25,7 @@ const connected = {
   from: {}
 };
 
+const isLocal = process.env.PORT ? false : true;
 const port = process.env.PORT || 80;
 
 const fs = require('fs');
@@ -255,10 +256,13 @@ function startServer(){
   }
 
   app.get('/', async (req, res) => {
-    thisUrl = "https://" + req.headers.host + "/";
-
+    if(!isLocal){
+      thisUrl = "https://" + req.headers.host + "/";
+    }else{
+      thisUrl = "http://" + req.headers.host + "/"; //ADD PORT FOR MULTI-SERVER LOCALNET
+    }
+    const pubKeyJwk = await crypto.subtle.exportKey('jwk', ECDSAPair.publicKey)
     async function connectToServer(url){
-      const pubKeyJwk = await crypto.subtle.exportKey('jwk', ECDSAPair.publicKey)
       sockets[url] = serverIo.connect(url);
       sockets[url].emit("Connecting to Server", {url: thisUrl, publicKey: pubKeyJwk, connectedServers: connected.to});
       sockets[url].on("Connected to Server", (d) => {
@@ -429,7 +433,7 @@ function startServer(){
     socket.on('Join with Credentials', (d) => {
       let user;
       const dimension = d.dimension || "valoria";
-      getUserById(d.userId, false, (user, serverSigs) => {
+      getUserById(d.userId, isLocal, (user, serverSigs) => {
         if(user){
           setupAuthSession(user, socket);
         } else{
@@ -491,7 +495,7 @@ function startServer(){
           cb(user, {[thisUrl]: {sig: serverSig, time: serverSigTime}});
          }else {
            if(localOnly) {
-             const serverSigTime = Data.now();
+             const serverSigTime = Date.now();
              const serverSig = await sign('no-' + serverSigTime + id);
              cb(null, {[thisUrl]: {sig: serverSig, time: serverSigTime}});
            } else {
@@ -500,7 +504,7 @@ function startServer(){
          }
         } catch {
           if(localOnly) {
-            const serverSigTime = Data.now();
+            const serverSigTime = Date.now();
             const serverSig = await sign('no-' + serverSigTime + id);
             cb(null, {[thisUrl]: {sig: serverSig, time: serverSigTime}})
            } else {
@@ -705,7 +709,7 @@ function startServer(){
       const dimension = data.dimensions[dimId];
       const online = {};
       Object.assign(online, dimension.sockets)
-      if(!localOnly){
+      if(!localOnly && !isLocal){
         let connectedAmount = Object.keys(connected.to).length;
         let count = 0;
         Object.keys(connected.to).forEach((url) => {
@@ -1033,8 +1037,6 @@ function startServer(){
   
     // Relay candidate messages
     socket.on("candidate", function (d) {
-      console.log("CANDIDATE");
-      console.log(d);
       if(d.server === thisUrl && data.online[d.socketId]){
         io.to(d.socketId).emit('newCandidate', d.userId, d.candidate);
       } else {
@@ -1057,8 +1059,6 @@ function startServer(){
   
     // Relay answers
     socket.on("answer", function (d) {
-      console.log("ANSWER");
-      console.log(d.server);
       if(d.server === thisUrl && data.online[d.socketId]){
         io.to(d.socketId).emit('answer', d.fromUserId, d.answer);
       } else {
